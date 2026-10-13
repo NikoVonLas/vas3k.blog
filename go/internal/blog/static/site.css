@@ -157,3 +157,9 @@ summary { cursor: pointer; color: var(--link-color); }
     *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
     .card:hover { transform: none; }
 }
+
+/* Article examples and safe, read-only GFM task lists. */
+.prose input[type="checkbox"] { display: inline-block; width: 1em; height: 1em; margin: 0 .5em 0 0; vertical-align: middle; }
+.prose.post > h4, .prose.post > h5, .prose.post > h6 { max-width: 800px; margin: 30px auto; }
+.prose.post > details { max-width: 800px; margin: 30px auto; padding: 25px; border-radius: 15px; background: var(--block-bg-color); }
+.prose .footnotes { max-width: 800px; margin: 40px auto; font-size: .85em; }

@@ -108,6 +108,8 @@ type Markdown struct {
 func NewMarkdown() *Markdown {
 	p := bluemonday.UGCPolicy()
 	p.AllowElements("figure", "figcaption", "video", "details", "summary")
+	p.AllowAttrs("type").Matching(regexp.MustCompile(`^checkbox$`)).OnElements("input")
+	p.AllowAttrs("disabled", "checked").OnElements("input")
 	p.AllowAttrs("class", "id").Matching(regexp.MustCompile(`^[\p{L}\p{N}_ .:-]+$`)).Globally()
 	p.AllowAttrs("tabindex").Matching(regexp.MustCompile(`^0$`)).OnElements("span")
 	p.AllowAttrs("controls", "preload", "src").OnElements("video")

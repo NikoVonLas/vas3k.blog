@@ -48,6 +48,7 @@ type page struct {
 	Posts                                                   []Post
 	Comments                                                []commentView
 	HTML                                                    template.HTML
+	StructuredData                                          template.JS
 	Kinds                                                   []string
 	Page, Next, Previous                                    int
 	Translations                                            []Post
@@ -146,6 +147,8 @@ func (a *Server) routes() {
 	handle("GET /rss/", a.feed)
 	handle("GET /rss/{scope}/", a.feed)
 	handle("GET /feed.json", a.jsonFeed)
+	handle("GET /llms.txt", a.llms)
+	handle("GET /{kind}/{slug}/index.md", a.markdownPost)
 	handle("GET /sitemap.xml", a.sitemap)
 	handle("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -255,6 +258,10 @@ func (a *Server) render(w http.ResponseWriter, r *http.Request, p page) {
 	p.CSRF = a.csrf(w, r)
 	p.Lang = a.lang(r)
 	p.Kinds = Kinds
+	if p.Mode == "post" {
+		p.StructuredData = a.structuredPost(p.Post)
+		w.Header().Set("Link", fmt.Sprintf(`<%s%s>; rel="alternate"; type="text/markdown", <%s/llms.txt?lang=%s>; rel="describedby"`, a.Config.BaseURL, p.Post.MarkdownURL(), a.Config.BaseURL, p.Post.Lang))
+	}
 	var b bytes.Buffer
 	if e := a.templates.ExecuteTemplate(&b, "layout", p); e != nil {
 		a.fail(w, e)
