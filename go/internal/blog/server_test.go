@@ -125,7 +125,7 @@ func TestHTTPIntegration(t *testing.T) {
 	member := newBrowser(a)
 	member.login(t, "member")
 	t.Run("public and protected routes", func(t *testing.T) {
-		for _, path := range []string{"/", "/all/", "/notes/", "/notes/public/", "/rss/", "/feed.json", "/sitemap.xml", "/robots.txt", "/static/site.css", "/healthz"} {
+		for _, path := range []string{"/", "/all/", "/notes/", "/notes/public/", "/rss/", "/feed.json", "/sitemap.xml", "/robots.txt", "/static/site.css", "/static/theme.js", "/static/css/theme.css", "/static/fonts/Ubuntu-Regular.woff2", "/healthz"} {
 			w := anonymous.request("GET", path, nil)
 			if w.Code != 200 {
 				t.Errorf("%s: %d %s", path, w.Code, w.Body.String())

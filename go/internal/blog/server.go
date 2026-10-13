@@ -103,7 +103,18 @@ func (a *Server) routes() {
 		m.HandleFunc(pattern, h)
 	}
 	static, _ := fs.Sub(assets, "static")
-	m.Handle("GET /static/{file}", http.StripPrefix("/static/", http.FileServerFS(static)))
+	// Exact asset routes cannot collide with legacy /{kind}/{slug}/index.html.
+	fileServer := http.StripPrefix("/static/", http.FileServerFS(static))
+	_ = fs.WalkDir(static, ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			m.Handle("GET /static/"+path, fileServer)
+		}
+		return nil
+	})
+
 	handle("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if e := a.Store.DB.Ping(r.Context()); e != nil {
 			http.Error(w, "unavailable", 503)
