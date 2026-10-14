@@ -42,6 +42,12 @@ main { margin-top: 20px; min-height: 50vh; }
 .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin: 25px 0 45px; }
 .list-heading h1 { font-size: 230%; text-align: left; padding: 0; margin: 0; }
 .entries { gap: 40px; }
+.about-card { width: 100%; min-width: 0; padding: 40px; border-radius: 30px; background: var(--block-bg-color); }
+.about-card h2 { margin: 0 0 24px; padding: 0; font-size: clamp(26px, 3vw, 36px); line-height: 1.3; text-align: left; }
+.about-card .p-name { color: inherit; text-decoration: none; }
+.about-description { max-width: 760px; font-size: 19px; line-height: 1.7; overflow-wrap: anywhere; }
+.about-description p { margin: 0 0 20px; }
+.about-links { display: flex; flex-wrap: wrap; gap: 14px 28px; margin-top: 28px; font-size: 17px; }
 .entry { width: calc(50% - 20px); min-width: 0; }
 .entry:first-child { width: 100%; }
 .entry .card { min-width: 0; background-color: var(--block-bg-color); text-decoration: none; }
@@ -143,6 +149,8 @@ summary { cursor: pointer; color: var(--link-color); }
     .list-heading h1 { font-size: 30px; margin-bottom: 25px; }
     .entry { width: 100%; }
     .entries { gap: 25px; }
+    .about-card { padding: 28px 25px; border-radius: 24px; }
+    .about-description { font-size: 17px; }
     .entry .card { border-radius: 24px; }
     .entry .card-info { padding: 20px 25px 30px; }
     .entry .card-title, .entry:first-child .card-title { font-size: 28px; }
