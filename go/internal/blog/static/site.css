@@ -9,24 +9,38 @@
 @import url("css/comments.css");
 
 * { box-sizing: border-box; }
-html { scroll-padding-top: 30px; }
+html { scroll-padding-top: 30px; scrollbar-gutter: stable; }
+:root { --site-width: 1000px; --page-gutter: 20px; }
+.site-header, .site-search, main, .footer {
+    width: 100%;
+    max-width: var(--site-width);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--page-gutter);
+    padding-right: var(--page-gutter);
+}
 body { margin: 0; }
 a { text-underline-offset: .18em; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--link-color); outline-offset: 5px; }
-.site-header { padding: 40px 24px; gap: 20px; justify-content: space-between; }
+.site-header { padding-top: 40px; padding-bottom: 40px; gap: 20px; justify-content: space-between; }
 .site-header .header-menu { gap: 12px; align-items: center; margin-left: auto; }
 .site-header .header-menu-item { font-size: 100%; padding: 13px 16px; }
+.site-header .header-menu-round { padding: 0; font-size: 20px; flex-shrink: 0; }
+.search-toggle { display: none; }
+html[data-js] .search-toggle { display: flex; }
+.site-search { display: flex; justify-content: flex-end; }
+html[data-js] .site-search:not(.site-search-visible) { display: none; }
+.site-search .header-search-form { position: relative; width: 100%; margin: 0 0 20px; }
+.site-search .header-search-form-input { margin: 0; padding-right: 55px; }
+.site-search .header-search-form-submit { top: 0; right: 4px; width: 45px; height: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .header-logo { color: var(--text-color); }
 .header-burger { display: none; }
-main { max-width: 1000px; margin: 20px auto 0; padding: 0 20px; min-height: 50vh; }
-main.page-post { max-width: 1400px; }
+main { margin-top: 20px; min-height: 50vh; }
 .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin: 25px 0 45px; }
 .list-heading h1 { font-size: 230%; text-align: left; padding: 0; margin: 0; }
-.list-heading form { display: flex; align-items: center; gap: 10px; margin: 0; max-width: 350px; }
-.list-heading input { min-width: 0; margin: 0; }
 .entries { gap: 40px; }
 .entry { width: calc(50% - 20px); min-width: 0; }
 .entry:first-child { width: 100%; }
@@ -119,15 +133,14 @@ summary { cursor: pointer; color: var(--link-color); }
 .skip:focus { top: 20px; background: var(--block-bg-color); padding: 15px; z-index: 100; }
 .sr-only, .honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 @media (max-width: 720px) {
-    .site-header { justify-content: space-between; padding: 25px 20px; gap: 15px; }
+    :root { --page-gutter: 15px; }
+    .site-header { padding-top: 25px; padding-bottom: 25px; gap: 15px; }
     .header-logo { font-size: 23px; flex: 1; }
     html[data-js] .header-burger { display: block; }
     .site-header .header-menu { order: 4; width: 100%; gap: 10px; margin-left: 0; }
     html[data-js] .header-menu:not(.header-menu-visible) { display: none; }
-    main { padding: 0 15px; }
     .list-heading { display: block; margin-top: 10px; }
     .list-heading h1 { font-size: 30px; margin-bottom: 25px; }
-    .list-heading form { max-width: none; }
     .entry { width: 100%; }
     .entries { gap: 25px; }
     .entry .card { border-radius: 24px; }
