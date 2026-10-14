@@ -10,20 +10,17 @@
 
 * { box-sizing: border-box; }
 html { scroll-padding-top: 30px; }
-html[theme="dark"] { color-scheme: dark; }
-html[theme="light"] { color-scheme: light; }
 body { margin: 0; }
 a { text-underline-offset: .18em; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--link-color); outline-offset: 5px; }
-.site-header { padding: 40px 24px; gap: 20px; }
-.site-header .header-menu { gap: 12px; align-items: center; }
+.site-header { padding: 40px 24px; gap: 20px; justify-content: space-between; }
+.site-header .header-menu { gap: 12px; align-items: center; margin-left: auto; }
 .site-header .header-menu-item { font-size: 100%; padding: 13px 16px; }
 .header-logo { color: var(--text-color); }
 .header-burger { display: none; }
-.theme-toggle { border-radius: 50%; width: 45px; height: 45px; padding: 0; font-size: 24px; flex-shrink: 0; }
 main { max-width: 1000px; margin: 20px auto 0; padding: 0 20px; min-height: 50vh; }
 main.page-post { max-width: 1400px; }
 .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin: 25px 0 45px; }
@@ -125,7 +122,7 @@ summary { cursor: pointer; color: var(--link-color); }
     .site-header { justify-content: space-between; padding: 25px 20px; gap: 15px; }
     .header-logo { font-size: 23px; flex: 1; }
     html[data-js] .header-burger { display: block; }
-    .site-header .header-menu { order: 4; width: 100%; gap: 10px; }
+    .site-header .header-menu { order: 4; width: 100%; gap: 10px; margin-left: 0; }
     html[data-js] .header-menu:not(.header-menu-visible) { display: none; }
     main { padding: 0 15px; }
     .list-heading { display: block; margin-top: 10px; }

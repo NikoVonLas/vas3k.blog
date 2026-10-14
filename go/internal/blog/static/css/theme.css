@@ -1,59 +1,14 @@
+/* The Go blog uses the original dark palette exclusively. */
 :root {
     --sans-font: "Ubuntu", Helvetica, Verdana, sans-serif;
     --serif-font: "Merriweather", Georgia, Times, serif;
-
     --block-border-radius: 15px;
     --button-border-radius: 15px;
-
-    --button-color: #FFF;
-    --button-bg-color: #333;
-    --button-border: solid 2px #333;
-    --button-hover-color: #333;
-    --button-hover-bg-color: #FFF;
-    --button-hover-border: solid 2px #333;
-
-    --input-border: solid 2px #CCC;
-    --input-border-focus: solid 2px #333;
-
     --badge-color: rgba(255, 196, 85, 0.91);
 }
 
-html, html[theme="light"] {
-    --bg-color: #f5f6f8;
-    --opposite-bg-color: #282c35;
-
-    --text-color: #333;
-    --brighter-text-color: #000;
-    --opposite-text-color: #DDD;
-
-    --block-bg-color: #FFF;
-    --opposite-block-bg-color: #282c35;
-    --block-shadow: 10px 15px 40px rgba(83, 91, 110, 0.11);
-    --block-border: none;
-
-    --card-title-color: #333;
-    --card-title-bg-color: #FFF;
-
-    --link-color: #16a6ff;
-    --link-hover-color: #999;
-    --visited-link-color: #333;
-
-    --button-color: #FFF;
-    --button-bg-color: #333;
-    --button-disabled-bg-color: #DDD;
-    --button-border: solid 2px #333;
-    --button-hover-color: #333;
-    --button-hover-bg-color: #FFF;
-    --button-hover-border: solid 2px #333;
-
-    --select-color: #333;
-    --select-bg-color: #FFF;
-
-    --input-border: solid 2px #CCC;
-    --input-border-focus: solid 2px #333;
-}
-
-html[theme="dark"] {
+html {
+    color-scheme: dark;
     --bg-color: #282c35;
     --opposite-bg-color: #f5f6f8;
 
@@ -85,34 +40,8 @@ html[theme="dark"] {
     --select-bg-color: #FFF;
 
     --input-border: solid 2px #CCC;
+    --input-border-focus: solid 2px #FFF;
 }
-
-/*@media (prefers-color-scheme: dark) {*/
-/*    html {*/
-/*        --bg-color: #282c35;*/
-/*        --opposite-bg-color: #f5f6f8;*/
-
-/*        --text-color: #DDD;*/
-/*        --brighter-text-color: #FFF;*/
-/*        --opposite-text-color: #333;*/
-
-/*        --block-bg-color: #1B1B1C;*/
-/*        --opposite-block-bg-color: #FFF;*/
-/*        --block-shadow: 0px 0px 0px #000;*/
-/*        --block-border: solid 1px #FCFDFF;*/
-
-/*        --link-color: #DDD;*/
-/*        --link-hover-color: #FFF;*/
-/*        --visited-link-color: #737373;*/
-
-/*        --button-color: #333;*/
-/*        --button-bg-color: #FFF;*/
-/*        --button-border: solid 2px #FFF;*/
-/*        --button-hover-color: #FFF;*/
-/*        --button-hover-bg-color: #333;*/
-/*        --button-hover-border: solid 2px #FFF;*/
-/*    }*/
-/*}*/
 
 body {
     font-family: var(--sans-font);
