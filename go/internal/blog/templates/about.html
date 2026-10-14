@@ -1,0 +1,14 @@
+{{define "about"}}
+<section class="about-card h-card" aria-labelledby="about-heading">
+    <h2 id="about-heading">Привет <span aria-hidden="true">👋</span> Я <a class="p-name u-url" href="{{.Site.BaseURL}}">Денис Николас</a></h2>
+    <div class="p-note about-description">
+        <p>В интернете — <span class="p-nickname">NikoVonLas</span>. Делаю инструменты, которые можно запустить у себя: <a href="https://github.com/NikoVonLas/tg-bot-platform">платформу для Telegram-ботов</a>, <a href="https://github.com/NikoVonLas/jitsi-admin-panel">панель управления Jitsi</a>. Дорабатываю <a href="https://github.com/NikoVonLas/apple-notes-mcp">Apple Notes MCP</a> для работы с заметками через ИИ.</p>
+        <p>Здесь собираю статьи, короткие заметки и опыт работы над своими проектами. Обживаю собственный уголок интернета — с постоянными ссылками, открытыми форматами и IndieWeb.</p>
+    </div>
+    <nav class="about-links" aria-label="Ссылки автора">
+        <a href="https://github.com/NikoVonLas" rel="me">GitHub</a>
+        <a href="https://t.me/nikovonlas" rel="me">Telegram</a>
+        <a href="/rss/?lang={{.Lang}}">RSS блога</a>
+    </nav>
+</section>
+{{end}}
