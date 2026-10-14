@@ -52,6 +52,7 @@ type page struct {
 	Kinds                                                   []string
 	Page, Next, Previous                                    int
 	Translations                                            []Post
+	Home                                                    bool
 }
 
 func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
@@ -339,6 +340,7 @@ func (a *Server) list(w http.ResponseWriter, r *http.Request) {
 	p := page{Mode: "list", Title: kindLabel(kind), Posts: posts, Page: n, Query: q}
 	if r.URL.Path == "/" {
 		p.Title = a.Config.Title
+		p.Home = q == ""
 	}
 	if q != "" {
 		p.Title = "Поиск: " + q
