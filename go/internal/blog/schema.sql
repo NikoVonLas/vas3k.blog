@@ -100,3 +100,18 @@ CREATE TABLE IF NOT EXISTS indieauth_logins (
 );
 CREATE INDEX IF NOT EXISTS indieauth_logins_expiry ON indieauth_logins(expires_at);
 INSERT INTO schema_versions(version) VALUES(5) ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS admin_passkeys (
+ id text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ credential jsonb NOT NULL, label text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), last_used_at timestamptz
+);
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS passkey_id text REFERENCES admin_passkeys(id) ON DELETE CASCADE;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+CREATE TABLE IF NOT EXISTS admin_setup_grants (
+ token_hash text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ expires_at timestamptz NOT NULL
+);
+CREATE TABLE IF NOT EXISTS passkey_ceremonies (
+ browser_hash text PRIMARY KEY, kind text NOT NULL, payload jsonb NOT NULL, expires_at timestamptz NOT NULL
+);
+INSERT INTO schema_versions(version) VALUES(6) ON CONFLICT DO NOTHING;

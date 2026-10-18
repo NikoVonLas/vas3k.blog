@@ -305,6 +305,10 @@ func (a *Server) visitorCallback(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	if u.Admin {
+		http.Error(w, "Администратор входит через /admin с Passkey", 403)
+		return
+	}
 	if u.Banned {
 		http.Error(w, "Этот профиль заблокирован", 403)
 		return

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -49,21 +49,45 @@ func run() error {
 	switch command {
 	case "migrate":
 		return store.Migrate(ctx)
-	case "create-owner":
+	case "admin-setup":
 		email := strings.ToLower(strings.TrimSpace(os.Getenv("OWNER_EMAIL")))
 		addr, e := mail.ParseAddress(email)
 		if e != nil || addr.Address != email {
 			return errors.New("valid OWNER_EMAIL is required")
 		}
-		// Read the password through stdin; never put it into argv or logs.
-		password, e := bufio.NewReader(os.Stdin).ReadString('\n')
-		if e != nil && password == "" {
-			return errors.New("read owner password from stdin")
+		base, e := url.Parse(env("BASE_URL", "http://localhost:8080"))
+		if e != nil || base.User != nil || base.Host == "" || base.RawQuery != "" || base.Fragment != "" || (base.Path != "" && base.Path != "/") || (base.Scheme != "https" && (base.Scheme != "http" || base.Hostname() != "localhost")) {
+			return errors.New("BASE_URL must be HTTPS, or HTTP localhost for development")
 		}
-		if e = store.CreateUser(ctx, email, env("OWNER_NAME", "Автор"), strings.TrimRight(password, "\r\n"), true); e != nil {
-			return errors.New("cannot create owner: check email uniqueness and password length (12–72 bytes)")
+		filename := os.Getenv("ADMIN_SETUP_FILE")
+		if filename == "" {
+			return errors.New("ADMIN_SETUP_FILE is required; use a protected file outside Git")
 		}
-		fmt.Println("Owner created")
+		file, e := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		if e != nil {
+			return errors.New("cannot create setup file (must not exist)")
+		}
+		complete := false
+		defer func() {
+			file.Close()
+			if !complete {
+				os.Remove(filename)
+			}
+		}()
+		token, e := store.PrepareAdminPasskey(ctx, email, env("OWNER_NAME", "Автор"))
+		if e != nil {
+			return errors.New("cannot prepare administrator; check account role and database")
+		}
+		base.Path = "/admin/setup"
+		base.Fragment = token
+		if _, e = file.WriteString(base.String() + "\n"); e != nil {
+			return errors.New("cannot write setup file")
+		}
+		if e = file.Close(); e != nil {
+			return errors.New("cannot close setup file")
+		}
+		complete = true
+		fmt.Println("Одноразовая ссылка записана в ADMIN_SETUP_FILE (0600), действует 15 минут.")
 		return nil
 	case "import":
 		var posts []blog.Post
@@ -83,7 +107,7 @@ func run() error {
 		return nil
 	case "serve":
 	default:
-		return errors.New("usage: blog [serve|migrate|create-owner|import]")
+		return errors.New("usage: blog [serve|migrate|admin-setup|import]")
 	}
 	cfg := blog.Config{BaseURL: env("BASE_URL", "http://localhost:8080"), Listen: env("LISTEN_ADDR", "127.0.0.1:8080"), Title: env("BLOG_TITLE", "Личный блог"), Author: env("BLOG_AUTHOR", "Автор"), Language: env("BLOG_LANGUAGE", "ru"), SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), MailFrom: os.Getenv("MAIL_FROM")}
 	app, e := blog.NewServer(ctx, store, cfg)

@@ -203,7 +203,7 @@ func (a *Server) indieAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Referrer-Policy", "same-origin")
 	if currentUser(r) == nil {
-		http.Redirect(w, r, "/login/?next="+url.QueryEscape(r.URL.RequestURI()), 303)
+		http.Redirect(w, r, "/admin?next="+url.QueryEscape(r.URL.RequestURI()), 303)
 		return
 	}
 	if !a.requireAdmin(w, r) {

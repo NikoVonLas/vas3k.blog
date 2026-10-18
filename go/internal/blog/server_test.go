@@ -55,7 +55,7 @@ func testApp(t *testing.T) *Server {
 		t.Fatal(e)
 	}
 	for _, role := range []string{"owner", "member"} {
-		if e = store.CreateUser(ctx, role+"@example.test", role, "test-only-password", role == "owner"); e != nil {
+		if _, e = store.DB.Exec(ctx, `INSERT INTO users(id,email,name,password_hash,is_admin) VALUES($1,$2,$3,'',$4)`, randomToken(), role+"@example.test", role, role == "owner"); e != nil {
 			t.Fatal(e)
 		}
 	}
@@ -97,11 +97,24 @@ func (b *browser) request(method, path string, form url.Values) *httptest.Respon
 }
 func (b *browser) login(t *testing.T, role string) {
 	t.Helper()
-	b.request("GET", "/login/", nil)
-	w := b.request("POST", "/login/", url.Values{"email": {role + "@example.test"}, "password": {"test-only-password"}})
-	if w.Code != 303 {
-		t.Fatalf("login: %d %s", w.Code, w.Body.String())
+	u, err := b.app.Store.UserEmail(context.Background(), role+"@example.test")
+	if err != nil {
+		t.Fatal(err)
 	}
+	token := randomToken()
+	var key any
+	if u.Admin {
+		key = randomToken()
+		_, err = b.app.Store.DB.Exec(context.Background(), `INSERT INTO admin_passkeys(id,user_id,credential,label) VALUES($1,$2,'{}','Test fixture')`, key, u.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = b.app.Store.DB.Exec(context.Background(), `INSERT INTO sessions(token_hash,user_id,passkey_id,expires_at) VALUES($1,$2,$3,now()+interval '1 day')`, hash(token), u.ID, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.cookies["session"] = &http.Cookie{Name: "session", Value: token}
 	b.request("GET", "/profile/", nil)
 }
 func seedPost(t *testing.T, a *Server, slug string, visible, private bool, at time.Time) Post {

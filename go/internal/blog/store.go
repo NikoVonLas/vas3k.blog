@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/crypto/bcrypt"
 )
 
 //go:embed schema.sql
@@ -149,18 +148,7 @@ func (s *Store) UserEmail(ctx context.Context, email string) (*User, error) {
 	return scanUser(s.DB.QueryRow(ctx, "SELECT "+userCols+" FROM users WHERE email=$1", email))
 }
 func (s *Store) Session(ctx context.Context, token string) (*User, error) {
-	return scanUser(s.DB.QueryRow(ctx, `SELECT u.id,coalesce(u.email,''),u.name,u.password_hash,u.avatar,u.is_admin,u.is_banned,u.is_member,u.profile_url FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.is_banned`, hash(token)))
-}
-func (s *Store) CreateUser(ctx context.Context, email, name, password string, admin bool) error {
-	if len(password) < 12 || len(password) > 72 {
-		return errors.New("password must contain 12–72 bytes")
-	}
-	h, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if e != nil {
-		return e
-	}
-	_, e = s.DB.Exec(ctx, `INSERT INTO users(id,email,name,password_hash,is_admin) VALUES($1,$2,$3,$4,$5)`, randomToken(), email, name, string(h), admin)
-	return e
+	return scanUser(s.DB.QueryRow(ctx, `SELECT u.id,coalesce(u.email,''),u.name,u.password_hash,u.avatar,u.is_admin,u.is_banned,u.is_member,u.profile_url FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.is_banned AND (NOT u.is_admin OR EXISTS(SELECT 1 FROM admin_passkeys k WHERE k.id=s.passkey_id AND k.user_id=u.id))`, hash(token)))
 }
 func (s *Store) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
 	var n int

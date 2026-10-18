@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -35,6 +36,7 @@ type Server struct {
 	secret      string
 	mux         *http.ServeMux
 	visitorHTTP *http.Client
+	passkeys    *webauthn.WebAuthn
 }
 type identityKey struct{}
 type commentView struct {
@@ -42,6 +44,7 @@ type commentView struct {
 	HTML template.HTML
 }
 type page struct {
+	PasskeyKeys                                             []adminKey
 	Status                                                  int
 	Title, Mode, Message, CSRF, Lang, Query, Block, ReplyTo string
 	LoginNext, LoginRedirect                                string
@@ -97,6 +100,9 @@ func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
 	if e != nil {
 		return nil, e
 	}
+	if e = app.initPasskeys(); e != nil {
+		return nil, e
+	}
 	app.routes()
 	return app, nil
 }
@@ -130,6 +136,7 @@ func (a *Server) routes() {
 
 	a.indieRoutes(handle)
 	a.visitorRoutes(handle)
+	a.passkeyRoutes(handle)
 	handle("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if e := a.Store.DB.Ping(r.Context()); e != nil {
 			http.Error(w, "unavailable", 503)
@@ -141,7 +148,7 @@ func (a *Server) routes() {
 	handle("GET /all/", a.list)
 	handle("GET /search/", a.list)
 	handle("GET /login/", a.login)
-	handle("POST /login/", a.login)
+
 	handle("POST /logout/", a.logout)
 	handle("GET /profile/", a.profile)
 	handle("POST /profile/", a.profile)
@@ -160,7 +167,7 @@ func (a *Server) routes() {
 	handle("POST /godmode/posts/new/", a.edit)
 	handle("GET /godmode/posts/{id}/", a.edit)
 	handle("POST /godmode/posts/{id}/", a.edit)
-	handle("POST /godmode/users/", a.createUser)
+
 	handle("GET /godmode/export/", a.export)
 	handle("POST /godmode/posts/{id}/announce/", a.announce)
 	handle("POST /comments/create/", a.comment)
@@ -176,7 +183,7 @@ func (a *Server) routes() {
 	handle("GET /sitemap.xml", a.sitemap)
 	handle("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "User-agent: *\nDisallow: /godmode/\nDisallow: /profile/\nSitemap: %s/sitemap.xml\n", a.Config.BaseURL)
+		fmt.Fprintf(w, "User-agent: *\nDisallow: /godmode/\nDisallow: /admin\nDisallow: /profile/\nSitemap: %s/sitemap.xml\n", a.Config.BaseURL)
 	})
 	handle("GET /subscribe/", a.subscribe)
 	handle("POST /subscribe/", a.subscribe)
@@ -361,7 +368,7 @@ func (a *Server) fail(w http.ResponseWriter, e error) {
 func (a *Server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 	u := currentUser(r)
 	if u == nil {
-		http.Redirect(w, r, "/login/", 303)
+		http.Redirect(w, r, "/admin?next="+url.QueryEscape(r.URL.RequestURI()), 303)
 		return false
 	}
 	if !u.Admin {

@@ -98,7 +98,7 @@ func TestIndieAuthAuthorizationAndTokens(t *testing.T) {
 	q := authParams("create update", randomToken())
 	path := "/indieauth/auth?" + q.Encode()
 	w := newBrowser(a).request("GET", path, nil)
-	if w.Code != 303 || !strings.HasPrefix(w.Header().Get("Location"), "/login/?next=") {
+	if w.Code != 303 || !strings.HasPrefix(w.Header().Get("Location"), "/admin?next=") {
 		t.Fatal("login continuation missing")
 	}
 	member := newBrowser(a)

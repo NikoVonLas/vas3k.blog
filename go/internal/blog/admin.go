@@ -4,48 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/mail"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func (a *Server) login(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		a.render(w, r, page{Mode: "login", Title: "Войти"})
-		return
-	}
-	if a.limited(w, r, "login", 10, 15*time.Minute) {
-		return
-	}
-	email := strings.ToLower(strings.TrimSpace(r.PostForm.Get("email")))
-	password := r.PostForm.Get("password")
-	u, e := a.Store.UserEmail(r.Context(), email)
-	if e != nil && !errors.Is(e, pgx.ErrNoRows) {
-		a.fail(w, e)
-		return
-	}
-	// A fixed valid bcrypt hash keeps the absent-account path computationally comparable.
-	h := []byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy")
-	if e == nil {
-		h = []byte(u.PasswordHash)
-	}
-	valid := bcrypt.CompareHashAndPassword(h, []byte(password)) == nil
-	if e != nil || !valid || u.Banned {
-		a.render(w, r, page{Mode: "login", Title: "Войти", Message: "Неверная почта или пароль"})
-		return
-	}
-	token := randomToken()
-	_, e = a.Store.DB.Exec(r.Context(), `INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 days')`, hash(token), u.ID)
-	if e != nil {
-		a.fail(w, e)
-		return
-	}
-	a.cookie(w, "session", token, 30*86400)
-	a.cookie(w, "csrf", "", -1)
-	http.Redirect(w, r, loginNext(r.URL.Query().Get("next")), 303)
+	a.render(w, r, page{Mode: "login", Title: "Войти"})
 }
 func (a *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, e := r.Cookie("session"); e == nil {
@@ -141,23 +107,6 @@ func (a *Server) edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.render(w, r, page{Mode: "edit", Title: "Редактирование", Post: p})
-}
-func (a *Server) createUser(w http.ResponseWriter, r *http.Request) {
-	if !a.requireAdmin(w, r) {
-		return
-	}
-	email := strings.ToLower(strings.TrimSpace(r.PostForm.Get("email")))
-	name := strings.TrimSpace(r.PostForm.Get("name"))
-	addr, e := mail.ParseAddress(email)
-	if e != nil || addr.Address != email || name == "" || len(name) > 128 {
-		http.Error(w, "Проверьте почту и имя", 400)
-		return
-	}
-	if e = a.Store.CreateUser(r.Context(), email, name, r.PostForm.Get("password"), false); e != nil {
-		http.Error(w, "Не удалось создать пользователя. Пароль: 12–72 байта; почта должна быть уникальной.", 400)
-		return
-	}
-	http.Redirect(w, r, "/godmode/", 303)
 }
 func (a *Server) export(w http.ResponseWriter, r *http.Request) {
 	if !a.requireAdmin(w, r) {
