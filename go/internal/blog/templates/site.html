@@ -15,6 +15,7 @@
 {{if eq .Mode "profile"}}<section class="compact"><h1>Профиль</h1>{{if .User.ProfileURL}}<p>Ваш сайт: <a href="{{.User.ProfileURL}}" rel="me">{{.User.ProfileURL}}</a></p>{{else}}<p>{{.User.Email}}</p>{{end}}<form method="post" class="profile-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Имя<input name="name" value="{{.User.Name}}" maxlength="128" required></label><label>Адрес аватара<input name="avatar" data-image-preview="avatar-preview" value="{{.User.Avatar}}"></label><label>Загрузить аватар<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" data-upload="avatar"></label><img id="avatar-preview" class="upload-preview avatar-preview" alt="Предпросмотр аватара" hidden><p class="hint">JPEG, PNG, GIF или WebP, до 10 МБ. Загруженные изображения доступны по ссылке.</p><p id="editor-status" role="status" aria-live="polite"></p><button>Сохранить</button></form><form method="post" action="/logout/"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Выйти</button></form></section>{{end}}
 {{if or (eq .Mode "admin-login") (eq .Mode "admin-setup") (eq .Mode "admin-keys")}}{{template "passkeys" .}}{{end}}
 {{if eq .Mode "admin"}}{{template "admin" .}}{{end}}
+{{if eq .Mode "posse"}}{{template "posse" .}}{{end}}
 {{if eq .Mode "edit"}}{{template "edit" .}}{{end}}
 {{if eq .Mode "indie-consent"}}{{template "indie-consent" .}}{{end}}{{if eq .Mode "indie-apps"}}{{template "indie-apps" .}}{{end}}
 {{if eq .Mode "webmentions"}}{{template "webmentions-admin" .}}{{end}}

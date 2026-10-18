@@ -61,6 +61,7 @@ func (a *Server) mpSource(p Post) mpProperties {
 	if props == nil {
 		props = mpProperties{}
 	}
+	props["syndication"] = p.syndicationLinks(props)
 	props["name"] = []any{p.Title}
 	props["summary"] = []any{p.Summary}
 	props["published"] = []any{p.PublishedAt.Format(time.RFC3339)}
@@ -219,6 +220,10 @@ func (a *Server) applyMP(p *Post, props mpProperties, changed map[string]bool) e
 }
 func (p Post) micropubExtras() string {
 	props := mpData(p).Properties
+	if props == nil {
+		props = mpProperties{}
+	}
+	props["syndication"] = p.syndicationLinks(props)
 	var out strings.Builder
 	for _, rel := range []struct{ key, label string }{{"in-reply-to", "Ответ на"}, {"like-of", "Нравится"}, {"repost-of", "Репост"}, {"bookmark-of", "Закладка"}, {"syndication", "Также опубликовано"}} {
 		for _, v := range props[rel.key] {
@@ -413,6 +418,21 @@ func (a *Server) micropub(w http.ResponseWriter, r *http.Request) {
 		if slug := mpString(input.Properties, "mp-slug"); slug != "" {
 			p.Slug = slug
 		}
+		requested := input.Properties["mp-syndicate-to"]
+		delete(input.Properties, "mp-syndicate-to")
+		if len(requested) > 0 {
+			if a.posseReady() != "" {
+				protocolError(w, 400, "invalid_request", "No syndication target connected")
+				return
+			}
+			for _, v := range requested {
+				s, ok := v.(string)
+				if !ok || s != a.telegramTarget().UID {
+					protocolError(w, 400, "invalid_request", "Unknown syndication target")
+					return
+				}
+			}
+		}
 		changed := map[string]bool{}
 		for k := range input.Properties {
 			changed[k] = true
@@ -425,7 +445,11 @@ func (a *Server) micropub(w http.ResponseWriter, r *http.Request) {
 			protocolError(w, 400, "invalid_request", "Empty entry")
 			return
 		}
-		if e = a.Store.SavePost(r.Context(), &p); e != nil {
+		if len(requested) > 0 && !possePublic(p) {
+			protocolError(w, 400, "invalid_request", "Syndication requires an already public post")
+			return
+		}
+		if e = a.saveMicropubPOSSE(r.Context(), &p, requested); e != nil {
 			a.mpSaveError(w, e)
 			return
 		}
@@ -529,9 +553,9 @@ func (a *Server) mpSaveError(w http.ResponseWriter, e error) {
 func (a *Server) micropubQuery(w http.ResponseWriter, r *http.Request, t IndieToken) {
 	switch r.URL.Query().Get("q") {
 	case "config":
-		protocolJSON(w, 200, map[string]any{"media-endpoint": a.Config.BaseURL + "/micropub/media", "syndicate-to": []any{}, "post-types": []any{map[string]string{"type": "note", "name": "Заметка"}, map[string]string{"type": "article", "name": "Статья"}, map[string]string{"type": "photo", "name": "Фото"}, map[string]string{"type": "reply", "name": "Ответ"}, map[string]string{"type": "like", "name": "Нравится"}, map[string]string{"type": "repost", "name": "Репост"}, map[string]string{"type": "bookmark", "name": "Закладка"}}})
+		protocolJSON(w, 200, map[string]any{"media-endpoint": a.Config.BaseURL + "/micropub/media", "syndicate-to": a.syndicationTargets(), "post-types": []any{map[string]string{"type": "note", "name": "Заметка"}, map[string]string{"type": "article", "name": "Статья"}, map[string]string{"type": "photo", "name": "Фото"}, map[string]string{"type": "reply", "name": "Ответ"}, map[string]string{"type": "like", "name": "Нравится"}, map[string]string{"type": "repost", "name": "Репост"}, map[string]string{"type": "bookmark", "name": "Закладка"}}})
 	case "syndicate-to":
-		protocolJSON(w, 200, map[string]any{"syndicate-to": []any{}})
+		protocolJSON(w, 200, map[string]any{"syndicate-to": a.syndicationTargets()})
 	case "source":
 		if !t.Has("read") && !t.Has("update") {
 			protocolError(w, 403, "insufficient_scope", "Source queries require read or update")

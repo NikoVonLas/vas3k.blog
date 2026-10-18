@@ -115,3 +115,14 @@ CREATE TABLE IF NOT EXISTS passkey_ceremonies (
  browser_hash text PRIMARY KEY, kind text NOT NULL, payload jsonb NOT NULL, expires_at timestamptz NOT NULL
 );
 INSERT INTO schema_versions(version) VALUES(6) ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS syndications (
+ id text PRIMARY KEY, post_id text NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ target text NOT NULL, state text NOT NULL DEFAULT 'queued' CHECK(state IN ('queued','sending','sent','failed','uncertain','cancelled')),
+ body text NOT NULL, revision text NOT NULL, url text NOT NULL DEFAULT '', detail text NOT NULL DEFAULT '',
+ attempts integer NOT NULL DEFAULT 0, available_at timestamptz NOT NULL DEFAULT now(),
+ created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(post_id,target)
+);
+CREATE INDEX IF NOT EXISTS syndications_queue ON syndications(available_at) WHERE state='queued';
+INSERT INTO schema_versions(version) VALUES(7) ON CONFLICT DO NOTHING;

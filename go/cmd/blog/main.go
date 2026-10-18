@@ -109,7 +109,7 @@ func run() error {
 	default:
 		return errors.New("usage: blog [serve|migrate|admin-setup|import]")
 	}
-	cfg := blog.Config{OwnerEmail: os.Getenv("OWNER_EMAIL"), BaseURL: env("BASE_URL", "http://localhost:8080"), Listen: env("LISTEN_ADDR", "127.0.0.1:8080"), Title: env("BLOG_TITLE", "Garbage M1ndstr3am"), Author: env("BLOG_AUTHOR", "Автор"), Language: env("BLOG_LANGUAGE", "ru"), SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), MailFrom: os.Getenv("MAIL_FROM")}
+	cfg := blog.Config{TelegramChannel: env("TELEGRAM_CHANNEL", "@m1ndstr3am"), TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"), OwnerEmail: os.Getenv("OWNER_EMAIL"), BaseURL: env("BASE_URL", "http://localhost:8080"), Listen: env("LISTEN_ADDR", "127.0.0.1:8080"), Title: env("BLOG_TITLE", "Garbage M1ndstr3am"), Author: env("BLOG_AUTHOR", "Автор"), Language: env("BLOG_LANGUAGE", "ru"), SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), MailFrom: os.Getenv("MAIL_FROM")}
 	app, e := blog.NewServer(ctx, store, cfg)
 	if e != nil {
 		return e
@@ -117,6 +117,7 @@ func run() error {
 	server := &http.Server{Addr: cfg.Listen, Handler: app, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 1 << 16}
 	go app.RunMailWorker(ctx)
 	go app.RunWebmentionWorker(ctx)
+	go app.RunPOSSEWorker(ctx)
 	go func() {
 		<-ctx.Done()
 		stop, cancel := context.WithTimeout(context.Background(), 10*time.Second)

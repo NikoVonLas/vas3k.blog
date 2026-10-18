@@ -119,7 +119,7 @@ func savePost(ctx context.Context, db executor, p *Post) error {
  subtitle=excluded.subtitle,body=excluded.body,summary=excluded.summary,image=excluded.image,author=excluded.author,
  external_url=excluded.external_url,css=excluded.css,raw_html=excluded.raw_html,visible=excluded.visible,
  members_only=excluded.members_only,commentable=excluded.commentable,on_home=excluded.on_home,
- published_at=excluded.published_at,updated_at=excluded.updated_at,data=excluded.data,deleted=excluded.deleted`,
+ published_at=excluded.published_at,updated_at=excluded.updated_at,data=excluded.data || CASE WHEN posts.data ? 'posse' THEN jsonb_build_object('posse',posts.data->'posse') ELSE '{}'::jsonb END,deleted=excluded.deleted`,
 		p.ID, p.Slug, p.Kind, p.Lang, p.Title, p.Subtitle, p.Body, p.Summary, p.Image, p.Author, p.ExternalURL, p.CSS, p.RawHTML, p.Visible, p.MembersOnly, p.Commentable, p.OnHome, p.PublishedAt, p.CreatedAt, p.UpdatedAt, p.Views, p.Data, p.Deleted)
 	return e
 }

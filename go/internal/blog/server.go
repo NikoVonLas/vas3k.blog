@@ -27,7 +27,7 @@ import (
 //go:embed templates/*.html static/*
 var assets embed.FS
 
-type Config struct{ BaseURL, Title, Author, Language, Listen, SMTPAddr, SMTPUser, SMTPPassword, MailFrom, OwnerEmail string }
+type Config struct{ BaseURL, Title, Author, Language, Listen, SMTPAddr, SMTPUser, SMTPPassword, MailFrom, OwnerEmail, TelegramChannel, TelegramBotToken string }
 type Server struct {
 	Store       *Store
 	Config      Config
@@ -36,6 +36,7 @@ type Server struct {
 	secret      string
 	mux         *http.ServeMux
 	visitorHTTP *http.Client
+	posseHTTP   *http.Client
 	passkeys    *webauthn.WebAuthn
 }
 type identityKey struct{}
@@ -44,6 +45,10 @@ type commentView struct {
 	HTML template.HTML
 }
 type page struct {
+	POSSECanSend                                            bool
+	Syndications                                            []Syndication
+	POSSETarget                                             SyndicationTarget
+	POSSEPreview, POSSERevision, POSSEReason                string
 	PasskeyKeys                                             []adminKey
 	FirstPasskey                                            bool
 	Status                                                  int
@@ -104,6 +109,9 @@ func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
 	if e = app.initPasskeys(); e != nil {
 		return nil, e
 	}
+	if e = app.initPOSSE(); e != nil {
+		return nil, e
+	}
 	app.routes()
 	return app, nil
 }
@@ -161,6 +169,8 @@ func (a *Server) routes() {
 	handle("GET /godmode/webmentions/", a.mentionsAdmin)
 	handle("POST /godmode/webmentions/{id}/", a.moderateMention)
 	handle("POST /godmode/posts/{id}/webmentions/", a.sendMentions)
+	handle("GET /godmode/posts/{id}/posse/", a.possePage)
+	handle("POST /godmode/posts/{id}/posse/", a.possePage)
 	handle("GET /godmode/", a.admin)
 	handle("GET /godmode/about/", a.editAbout)
 	handle("POST /godmode/about/", a.editAbout)
