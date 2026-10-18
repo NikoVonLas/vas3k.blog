@@ -28,12 +28,13 @@ var assets embed.FS
 
 type Config struct{ BaseURL, Title, Author, Language, Listen, SMTPAddr, SMTPUser, SMTPPassword, MailFrom string }
 type Server struct {
-	Store     *Store
-	Config    Config
-	md        *Markdown
-	templates *template.Template
-	secret    string
-	mux       *http.ServeMux
+	Store       *Store
+	Config      Config
+	md          *Markdown
+	templates   *template.Template
+	secret      string
+	mux         *http.ServeMux
+	visitorHTTP *http.Client
 }
 type identityKey struct{}
 type commentView struct {
@@ -41,7 +42,9 @@ type commentView struct {
 	HTML template.HTML
 }
 type page struct {
+	Status                                                  int
 	Title, Mode, Message, CSRF, Lang, Query, Block, ReplyTo string
+	LoginNext, LoginRedirect                                string
 	Site                                                    Config
 	User                                                    *User
 	Post                                                    Post
@@ -85,7 +88,7 @@ func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
 	if e != nil {
 		return nil, e
 	}
-	app := &Server{Store: s, Config: c, md: NewMarkdown(), mux: http.NewServeMux()}
+	app := &Server{Store: s, Config: c, md: NewMarkdown(), mux: http.NewServeMux(), visitorHTTP: publicPreviewClient()}
 	if e = s.DB.QueryRow(ctx, `SELECT value FROM settings WHERE key='csrf_secret'`).Scan(&app.secret); e != nil {
 		return nil, e
 	}
@@ -126,6 +129,7 @@ func (a *Server) routes() {
 	})
 
 	a.indieRoutes(handle)
+	a.visitorRoutes(handle)
 	handle("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if e := a.Store.DB.Ping(r.Context()); e != nil {
 			http.Error(w, "unavailable", 503)
@@ -293,6 +297,9 @@ func (a *Server) cookie(w http.ResponseWriter, name, value string, age int) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: age, HttpOnly: true, Secure: strings.HasPrefix(a.Config.BaseURL, "https://"), SameSite: http.SameSiteLaxMode})
 }
 func (a *Server) render(w http.ResponseWriter, r *http.Request, p page) {
+	if p.LoginNext == "" {
+		p.LoginNext = loginNext(r.URL.Query().Get("next"))
+	}
 	if r.URL.Path == "/" {
 		w.Header().Add("Link", a.indieDiscovery())
 	}
@@ -342,6 +349,9 @@ func (a *Server) render(w http.ResponseWriter, r *http.Request, p page) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if p.Status != 0 {
+		w.WriteHeader(p.Status)
+	}
 	_, _ = w.Write(b.Bytes())
 }
 func (a *Server) fail(w http.ResponseWriter, e error) {

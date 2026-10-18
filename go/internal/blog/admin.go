@@ -45,7 +45,7 @@ func (a *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	a.cookie(w, "session", token, 30*86400)
 	a.cookie(w, "csrf", "", -1)
-	http.Redirect(w, r, indieNext(r.URL.Query().Get("next")), 303)
+	http.Redirect(w, r, loginNext(r.URL.Query().Get("next")), 303)
 }
 func (a *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, e := r.Cookie("session"); e == nil {

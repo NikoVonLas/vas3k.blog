@@ -52,7 +52,7 @@ func (p Post) Readable(u *User) bool {
 	if u != nil && u.Admin {
 		return true
 	}
-	return p.Public(time.Now()) && (!p.MembersOnly || u != nil)
+	return p.Public(time.Now()) && (!p.MembersOnly || u != nil && (u.Member || u.Admin))
 }
 func (p Post) Valid() bool {
 	validKind := false
@@ -74,14 +74,14 @@ func safeURL(s string) bool {
 }
 
 type User struct {
-	ID, Email, Name, PasswordHash, Avatar string
-	Admin, Banned                         bool
+	ID, Email, Name, PasswordHash, Avatar, ProfileURL string
+	Admin, Banned, Member                             bool
 }
 type Comment struct {
-	ID, PostID, UserID, Author, Body, Block, ReplyTo string
-	Deleted, Pinned                                  bool
-	CreatedAt                                        time.Time
-	Votes                                            int
+	ID, PostID, UserID, Author, AuthorURL, Body, Block, ReplyTo string
+	Deleted, Pinned                                             bool
+	CreatedAt                                                   time.Time
+	Votes                                                       int
 }
 
 func randomToken() string {

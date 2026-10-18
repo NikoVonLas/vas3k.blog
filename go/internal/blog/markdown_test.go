@@ -52,11 +52,11 @@ func TestPostVisibility(t *testing.T) {
 		t.Fatal("public post inaccessible")
 	}
 	public.MembersOnly = true
-	if public.Readable(nil) || !public.Readable(&User{}) {
+	if public.Readable(nil) || !public.Readable(&User{Member: true}) {
 		t.Fatal("membership boundary")
 	}
 	public.PublishedAt = now.Add(time.Hour)
-	if public.Readable(&User{}) || !public.Readable(&User{Admin: true}) {
+	if public.Readable(&User{Member: true}) || !public.Readable(&User{Admin: true}) {
 		t.Fatal("scheduled post boundary")
 	}
 	public.Visible = false

@@ -257,3 +257,7 @@ summary { cursor: pointer; color: var(--link-color); }
 .indie-panel fieldset { border:1px solid var(--text-color); padding:20px; }
 
 .page-indie-apps > h1, .indie-panel h1 { padding:25px 0 40px; }
+
+.password-login { margin-top: 2.5rem; }
+.password-login summary { cursor: pointer; }
+.password-login form { margin-top: 1rem; }

@@ -34,7 +34,8 @@ func (a *Server) feed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	private := scope == "private"
-	if private && currentUser(r) == nil {
+	u := currentUser(r)
+	if private && (u == nil || !u.Member && !u.Admin) {
 		http.Error(w, "Требуется вход", 401)
 		return
 	}

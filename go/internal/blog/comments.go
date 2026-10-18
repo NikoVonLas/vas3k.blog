@@ -45,7 +45,7 @@ func (a *Server) comment(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	id := randomToken()
-	_, e = a.Store.DB.Exec(r.Context(), `INSERT INTO comments(id,post_id,user_id,author_name,body,block,reply_to) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,''))`, id, p.ID, u.ID, u.Name, body, block, reply)
+	_, e = a.Store.DB.Exec(r.Context(), `INSERT INTO comments(id,post_id,user_id,author_name,body,block,reply_to,author_url) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,''),$8)`, id, p.ID, u.ID, u.Name, body, block, reply, u.ProfileURL)
 	if e != nil {
 		a.fail(w, e)
 		return

@@ -139,17 +139,17 @@ func (s *Store) ImportPosts(ctx context.Context, posts []Post) error {
 }
 func scanUser(row pgx.Row) (*User, error) {
 	var u User
-	e := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.Avatar, &u.Admin, &u.Banned)
+	e := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.Avatar, &u.Admin, &u.Banned, &u.Member, &u.ProfileURL)
 	return &u, e
 }
 
-const userCols = `id,email,name,password_hash,avatar,is_admin,is_banned`
+const userCols = `id,coalesce(email,''),name,password_hash,avatar,is_admin,is_banned,is_member,profile_url`
 
 func (s *Store) UserEmail(ctx context.Context, email string) (*User, error) {
 	return scanUser(s.DB.QueryRow(ctx, "SELECT "+userCols+" FROM users WHERE email=$1", email))
 }
 func (s *Store) Session(ctx context.Context, token string) (*User, error) {
-	return scanUser(s.DB.QueryRow(ctx, `SELECT u.id,u.email,u.name,u.password_hash,u.avatar,u.is_admin,u.is_banned FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.is_banned`, hash(token)))
+	return scanUser(s.DB.QueryRow(ctx, `SELECT u.id,coalesce(u.email,''),u.name,u.password_hash,u.avatar,u.is_admin,u.is_banned,u.is_member,u.profile_url FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.is_banned`, hash(token)))
 }
 func (s *Store) CreateUser(ctx context.Context, email, name, password string, admin bool) error {
 	if len(password) < 12 || len(password) > 72 {
@@ -170,7 +170,7 @@ func (s *Store) Allow(ctx context.Context, key string, limit int, window time.Du
 	return n <= limit, e
 }
 func (s *Store) Comments(ctx context.Context, post string) ([]Comment, error) {
-	rows, e := s.DB.Query(ctx, `SELECT c.id,c.post_id,coalesce(c.user_id,''),c.author_name,c.body,c.block,coalesce(c.reply_to,''),c.deleted,c.pinned,c.created_at,
+	rows, e := s.DB.Query(ctx, `SELECT c.id,c.post_id,coalesce(c.user_id,''),c.author_name,c.author_url,c.body,c.block,coalesce(c.reply_to,''),c.deleted,c.pinned,c.created_at,
  (SELECT count(*) FROM reactions r WHERE r.post_id=c.post_id AND r.target='comment:'||c.id) FROM comments c WHERE c.post_id=$1 ORDER BY c.pinned DESC,c.created_at`, post)
 	if e != nil {
 		return nil, e
@@ -179,7 +179,7 @@ func (s *Store) Comments(ctx context.Context, post string) ([]Comment, error) {
 	out := []Comment{}
 	for rows.Next() {
 		var c Comment
-		if e = rows.Scan(&c.ID, &c.PostID, &c.UserID, &c.Author, &c.Body, &c.Block, &c.ReplyTo, &c.Deleted, &c.Pinned, &c.CreatedAt, &c.Votes); e != nil {
+		if e = rows.Scan(&c.ID, &c.PostID, &c.UserID, &c.Author, &c.AuthorURL, &c.Body, &c.Block, &c.ReplyTo, &c.Deleted, &c.Pinned, &c.CreatedAt, &c.Votes); e != nil {
 			return nil, e
 		}
 		if c.Deleted {

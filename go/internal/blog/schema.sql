@@ -88,3 +88,15 @@ CREATE TABLE IF NOT EXISTS indieauth_tokens (
 );
 CREATE INDEX IF NOT EXISTS indieauth_tokens_user ON indieauth_tokens(user_id,created_at);
 INSERT INTO schema_versions(version) VALUES(4) ON CONFLICT DO NOTHING;
+
+ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_member boolean NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_url text NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS users_profile_url ON users(profile_url) WHERE profile_url<>'';
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS author_url text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS indieauth_logins (
+ state_hash text PRIMARY KEY, browser_hash text NOT NULL, payload jsonb NOT NULL,
+ expires_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS indieauth_logins_expiry ON indieauth_logins(expires_at);
+INSERT INTO schema_versions(version) VALUES(5) ON CONFLICT DO NOTHING;
