@@ -52,6 +52,25 @@
   form.addEventListener('submit', (event) => {
     if (pending) { event.preventDefault(); notify('Дождитесь завершения загрузки или вставки ссылки.'); }
   });
+  const links = form.querySelector('[data-about-links]');
+  if (links) {
+    const add = form.querySelector('[data-add-about-link]');
+    add.hidden = false;
+    const update = () => {
+      add.disabled = links.children.length >= 12;
+      for (const button of links.querySelectorAll('[data-remove-about-link]')) button.hidden = false;
+    };
+    links.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove-about-link]');
+      if (button) { button.closest('.about-link-row').remove(); update(); }
+    });
+    add.addEventListener('click', () => {
+      if (links.children.length >= 12) return;
+      links.append(document.getElementById('about-link-template').content.cloneNode(true));
+      update(); links.lastElementChild.querySelector('input').focus();
+    });
+    update();
+  }
   if (!body) return;
   body.addEventListener('paste', (event) => {
     const files = [...event.clipboardData.files].filter(file => file.type.startsWith('image/'));

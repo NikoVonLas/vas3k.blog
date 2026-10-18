@@ -54,6 +54,9 @@ type page struct {
 	Translations                                            []Post
 	Home                                                    bool
 	Hero                                                    *Post
+	About                                                   AboutCard
+	AboutHTML                                               template.HTML
+	AboutRevision                                           string
 }
 
 func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
@@ -138,6 +141,8 @@ func (a *Server) routes() {
 	handle("POST /godmode/link-preview/", a.linkPreview)
 	handle("GET /embeds/{id}/{digest}/document", a.embed)
 	handle("GET /godmode/", a.admin)
+	handle("GET /godmode/about/", a.editAbout)
+	handle("POST /godmode/about/", a.editAbout)
 	handle("GET /godmode/posts/new/", a.edit)
 	handle("POST /godmode/posts/new/", a.edit)
 	handle("GET /godmode/posts/{id}/", a.edit)
@@ -272,6 +277,15 @@ func (a *Server) render(w http.ResponseWriter, r *http.Request, p page) {
 	p.CSRF = a.csrf(w, r)
 	p.Lang = a.lang(r)
 	p.Kinds = Kinds
+	if p.Home && p.Page == 1 {
+		card, _, err := a.Store.About(r.Context())
+		if err != nil {
+			a.fail(w, err)
+			return
+		}
+		p.About = card
+		p.AboutHTML = a.md.Comment(card.Description)
+	}
 	if p.Mode == "post" {
 		p.StructuredData = a.structuredPost(p.Post)
 		w.Header().Set("Link", fmt.Sprintf(`<%s%s>; rel="alternate"; type="text/markdown", <%s/llms.txt?lang=%s>; rel="describedby"`, a.Config.BaseURL, p.Post.MarkdownURL(), a.Config.BaseURL, p.Post.Lang))

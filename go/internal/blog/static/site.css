@@ -226,3 +226,22 @@ summary { cursor: pointer; color: var(--link-color); }
   .prose .link-preview img { width: 100%; max-height: 220px; }
   .prose .diagram { padding: 15px; }
 }
+
+/* Editable author card. */
+.about-identity { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; }
+.about-identity h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.about-photo { width: 100px; height: 100px; object-fit: cover; flex-shrink: 0; }
+.about-description img { max-width: 100%; height: auto; }
+.about-description pre { overflow-x: auto; }
+.about-edit-link { margin: 24px 0 0; font-size: 14px; }
+.page-about-edit > h1 { padding: 25px 0; }
+.about-link-fields { min-width: 0; padding: 20px; margin: 30px 0; border: 1px solid #ffffff30; }
+.about-link-row { display: grid; grid-template-columns: 1fr 2fr; gap: 12px 20px; padding: 20px 0; border-top: 1px solid #ffffff20; }
+.about-link-row label { min-width: 0; margin: 0; }
+.about-link-row button { justify-self: end; align-self: end; }
+@media (max-width: 720px) {
+  .about-identity { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .about-link-fields { padding: 15px; }
+  .about-link-row { grid-template-columns: 1fr; }
+  .about-link-row button { justify-self: start; }
+}
