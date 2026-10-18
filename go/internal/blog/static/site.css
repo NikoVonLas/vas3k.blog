@@ -9,6 +9,8 @@
 @import url("css/comments.css");
 
 * { box-sizing: border-box; }
+/* Keep square corners across both the original styles and Go components. */
+*, *::before, *::after { border-radius: 0 !important; }
 html { scroll-padding-top: 30px; scrollbar-gutter: stable; }
 :root { --site-width: 1000px; --page-gutter: 20px; }
 .site-header, .site-search, main, .footer {
