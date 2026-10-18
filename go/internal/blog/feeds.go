@@ -45,7 +45,7 @@ func (a *Server) feed(w http.ResponseWriter, r *http.Request) {
 	}
 	feed := rssDocument{Version: "2.0", Channel: rssChannel{Title: a.Config.Title, Link: a.Config.BaseURL, Description: a.Config.Title, Language: a.lang(r)}}
 	for _, p := range posts {
-		body := string(a.md.Render(p.Body, p.RawHTML))
+		body := string(a.md.RenderContent(p))
 		if p.ExternalURL != "" {
 			body = p.Summary
 		}
@@ -63,7 +63,7 @@ func (a *Server) jsonFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	items := []map[string]any{}
 	for _, p := range posts {
-		items = append(items, map[string]any{"id": a.Config.BaseURL + "/#" + p.ID, "url": a.Config.BaseURL + p.URL(), "title": p.Title, "content_html": string(a.md.Render(p.Body, p.RawHTML)), "date_published": p.PublishedAt.Format(time.RFC3339), "date_modified": p.UpdatedAt.Format(time.RFC3339), "language": p.Lang})
+		items = append(items, map[string]any{"id": a.Config.BaseURL + "/#" + p.ID, "url": a.Config.BaseURL + p.URL(), "title": p.Title, "content_html": string(a.md.RenderContent(p)), "date_published": p.PublishedAt.Format(time.RFC3339), "date_modified": p.UpdatedAt.Format(time.RFC3339), "language": p.Lang})
 	}
 	w.Header().Set("Content-Type", "application/feed+json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]any{"version": "https://jsonfeed.org/version/1.1", "title": a.Config.Title, "home_page_url": a.Config.BaseURL, "feed_url": a.Config.BaseURL + "/feed.json", "items": items})

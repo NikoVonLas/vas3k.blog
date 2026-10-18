@@ -44,11 +44,11 @@ func (s *Store) Migrate(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-const postCols = `id,slug,kind,lang,title,subtitle,body,summary,image,author,external_url,css,raw_html,visible,members_only,commentable,on_home,published_at,created_at,updated_at,views,data`
+const postCols = `id,slug,kind,lang,title,subtitle,body,summary,image,author,external_url,css,raw_html,visible,members_only,commentable,on_home,published_at,created_at,updated_at,views,data,deleted`
 
 func scanPost(row pgx.Row) (Post, error) {
 	var p Post
-	e := row.Scan(&p.ID, &p.Slug, &p.Kind, &p.Lang, &p.Title, &p.Subtitle, &p.Body, &p.Summary, &p.Image, &p.Author, &p.ExternalURL, &p.CSS, &p.RawHTML, &p.Visible, &p.MembersOnly, &p.Commentable, &p.OnHome, &p.PublishedAt, &p.CreatedAt, &p.UpdatedAt, &p.Views, &p.Data)
+	e := row.Scan(&p.ID, &p.Slug, &p.Kind, &p.Lang, &p.Title, &p.Subtitle, &p.Body, &p.Summary, &p.Image, &p.Author, &p.ExternalURL, &p.CSS, &p.RawHTML, &p.Visible, &p.MembersOnly, &p.Commentable, &p.OnHome, &p.PublishedAt, &p.CreatedAt, &p.UpdatedAt, &p.Views, &p.Data, &p.Deleted)
 	return p, e
 }
 func (s *Store) Post(ctx context.Context, slug, lang string) (Post, error) {
@@ -73,7 +73,7 @@ func (s *Store) Posts(ctx context.Context, f Filter) ([]Post, error) {
 		f.Offset = 0
 	}
 	rows, e := s.DB.Query(ctx, `SELECT `+postCols+` FROM posts WHERE
- ($1='' OR lang=$1) AND ($2='' OR kind=$2) AND ($3 OR (visible AND published_at<=now()))
+ ($1='' OR lang=$1) AND ($2='' OR kind=$2) AND ($3 OR (visible AND NOT deleted AND published_at<=now()))
  AND (NOT $4 OR NOT members_only) AND (NOT $5 OR on_home) AND (NOT $10 OR kind IN ('blog','notes'))
  AND ($6='' OR to_tsvector('simple',title||' '||body) @@ plainto_tsquery('simple',$6))
  AND ($9='' OR id<>$9)
@@ -115,13 +115,13 @@ func savePost(ctx context.Context, db executor, p *Post) error {
 		p.Data = []byte(`{}`)
 	}
 	_, e := db.Exec(ctx, `INSERT INTO posts (`+postCols+`) VALUES
- ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+ ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
  ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,kind=excluded.kind,lang=excluded.lang,title=excluded.title,
  subtitle=excluded.subtitle,body=excluded.body,summary=excluded.summary,image=excluded.image,author=excluded.author,
  external_url=excluded.external_url,css=excluded.css,raw_html=excluded.raw_html,visible=excluded.visible,
  members_only=excluded.members_only,commentable=excluded.commentable,on_home=excluded.on_home,
- published_at=excluded.published_at,updated_at=excluded.updated_at,data=excluded.data`,
-		p.ID, p.Slug, p.Kind, p.Lang, p.Title, p.Subtitle, p.Body, p.Summary, p.Image, p.Author, p.ExternalURL, p.CSS, p.RawHTML, p.Visible, p.MembersOnly, p.Commentable, p.OnHome, p.PublishedAt, p.CreatedAt, p.UpdatedAt, p.Views, p.Data)
+ published_at=excluded.published_at,updated_at=excluded.updated_at,data=excluded.data,deleted=excluded.deleted`,
+		p.ID, p.Slug, p.Kind, p.Lang, p.Title, p.Subtitle, p.Body, p.Summary, p.Image, p.Author, p.ExternalURL, p.CSS, p.RawHTML, p.Visible, p.MembersOnly, p.Commentable, p.OnHome, p.PublishedAt, p.CreatedAt, p.UpdatedAt, p.Views, p.Data, p.Deleted)
 	return e
 }
 func (s *Store) ImportPosts(ctx context.Context, posts []Post) error {

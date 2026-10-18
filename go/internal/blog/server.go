@@ -59,6 +59,8 @@ type page struct {
 	AboutRevision                                           string
 	Mentions                                                []Webmention
 	AcceptsMentions                                         bool
+	IndieRequest                                            IndieRequest
+	IndieTokens                                             []IndieToken
 }
 
 func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
@@ -123,6 +125,7 @@ func (a *Server) routes() {
 		return nil
 	})
 
+	a.indieRoutes(handle)
 	handle("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if e := a.Store.DB.Ping(r.Context()); e != nil {
 			http.Error(w, "unavailable", 503)
@@ -207,11 +210,18 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/webmention" {
 		limit = 64 << 10
 	}
-	if r.URL.Path == "/uploads/" {
+	if r.URL.Path == "/uploads/" || r.URL.Path == "/micropub/media" || r.URL.Path == "/micropub" {
 		limit = 11 << 20
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
-	if c, e := r.Cookie("session"); e == nil && r.URL.Path != "/webmention" {
+	if protocolPath(r.URL.Path) || r.URL.Path == "/indieauth/auth" && (r.Method == "POST" || r.Method == "OPTIONS") || r.URL.Path == "/.well-known/oauth-authorization-server" {
+		protocolCORS(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(204)
+			return
+		}
+	}
+	if c, e := r.Cookie("session"); e == nil && r.URL.Path != "/webmention" && !protocolRequest(r) {
 		u, e := a.Store.Session(r.Context(), c.Value)
 		if e == nil {
 			r = r.WithContext(context.WithValue(r.Context(), identityKey{}, u))
@@ -221,8 +231,9 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" {
-		// The public protocol endpoint never uses browser identity or privileged actions.
-		if r.URL.Path != "/webmention" && !a.validCSRF(r) {
+		// Protocol endpoints authenticate with codes/tokens, never session cookies.
+		// Browser consent and all other browser mutations still require CSRF.
+		if r.URL.Path != "/webmention" && !protocolRequest(r) && !a.validCSRF(r) {
 			http.Error(w, "Обновите страницу и повторите действие", http.StatusForbidden)
 			return
 		}
@@ -282,6 +293,9 @@ func (a *Server) cookie(w http.ResponseWriter, name, value string, age int) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: age, HttpOnly: true, Secure: strings.HasPrefix(a.Config.BaseURL, "https://"), SameSite: http.SameSiteLaxMode})
 }
 func (a *Server) render(w http.ResponseWriter, r *http.Request, p page) {
+	if r.URL.Path == "/" {
+		w.Header().Add("Link", a.indieDiscovery())
+	}
 	p.Site = a.Config
 	p.User = currentUser(r)
 	p.CSRF = a.csrf(w, r)
@@ -441,7 +455,7 @@ func (a *Server) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := currentUser(r)
-	if !p.Public(time.Now()) && (u == nil || !u.Admin) {
+	if p.Deleted || !p.Public(time.Now()) && (u == nil || !u.Admin) {
 		http.NotFound(w, r)
 		return
 	}
@@ -476,7 +490,7 @@ func (a *Server) show(w http.ResponseWriter, r *http.Request) {
 		body = strings.ReplaceAll(body, "#comment-form", "#comments")
 	}
 	pageData := page{Title: p.Title, Mode: "post", Post: p, HTML: template.HTML(body), Comments: cv, Block: r.URL.Query().Get("block"), ReplyTo: r.URL.Query().Get("reply")}
-	rows, e := a.Store.DB.Query(r.Context(), `SELECT `+postCols+` FROM posts WHERE slug=$1 AND lang<>$2 AND visible AND published_at<=now()`, p.Slug, p.Lang)
+	rows, e := a.Store.DB.Query(r.Context(), `SELECT `+postCols+` FROM posts WHERE slug=$1 AND lang<>$2 AND visible AND NOT deleted AND published_at<=now()`, p.Slug, p.Lang)
 	if e != nil {
 		a.fail(w, e)
 		return

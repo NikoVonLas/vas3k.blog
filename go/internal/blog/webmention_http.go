@@ -23,6 +23,10 @@ type mentionDocument struct {
 }
 
 func fetchMentionDocument(ctx context.Context, client *http.Client, raw string) (mentionDocument, error) {
+	return fetchProtocolDocument(ctx, client, raw, "text/html,application/xhtml+xml")
+}
+
+func fetchProtocolDocument(ctx context.Context, client *http.Client, raw, accept string) (mentionDocument, error) {
 	u, err := publicURL(raw)
 	if err != nil {
 		return mentionDocument{}, err
@@ -31,8 +35,8 @@ func fetchMentionDocument(ctx context.Context, client *http.Client, raw string) 
 	if err != nil {
 		return mentionDocument{}, err
 	}
-	req.Header.Set("User-Agent", "PersonalBlog-Webmention/1.0")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	req.Header.Set("User-Agent", "PersonalBlog-IndieWeb/1.0")
+	req.Header.Set("Accept", accept)
 	response, err := client.Do(req)
 	if err != nil {
 		return mentionDocument{}, err

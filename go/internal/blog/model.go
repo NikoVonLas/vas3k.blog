@@ -25,6 +25,7 @@ type Post struct {
 	ExternalURL string          `json:"external_url"`
 	CSS         string          `json:"css"`
 	RawHTML     bool            `json:"raw_html"`
+	Deleted     bool            `json:"deleted"`
 	Visible     bool            `json:"visible"`
 	MembersOnly bool            `json:"members_only"`
 	Commentable bool            `json:"commentable"`
@@ -43,8 +44,11 @@ var langPattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$`)
 func (p Post) URL() string {
 	return "/" + p.Kind + "/" + url.PathEscape(p.Slug) + "/?lang=" + url.QueryEscape(p.Lang)
 }
-func (p Post) Public(now time.Time) bool { return p.Visible && !p.PublishedAt.After(now) }
+func (p Post) Public(now time.Time) bool { return !p.Deleted && p.Visible && !p.PublishedAt.After(now) }
 func (p Post) Readable(u *User) bool {
+	if p.Deleted {
+		return false
+	}
 	if u != nil && u.Admin {
 		return true
 	}

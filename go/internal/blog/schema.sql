@@ -71,3 +71,20 @@ CREATE TABLE IF NOT EXISTS webmentions (
 CREATE INDEX IF NOT EXISTS webmentions_queue ON webmentions(available_at) WHERE state='queued';
 CREATE INDEX IF NOT EXISTS webmentions_post ON webmentions(post_id,created_at);
 INSERT INTO schema_versions(version) VALUES(3) ON CONFLICT DO NOTHING;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS deleted boolean NOT NULL DEFAULT false;
+CREATE TABLE IF NOT EXISTS indieauth_requests (
+ id text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ session_hash text NOT NULL, payload jsonb NOT NULL, expires_at timestamptz NOT NULL
+);
+CREATE TABLE IF NOT EXISTS indieauth_codes (
+ code_hash text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ client_id text NOT NULL, redirect_uri text NOT NULL, challenge text NOT NULL,
+ scope text NOT NULL, me text NOT NULL, expires_at timestamptz NOT NULL
+);
+CREATE TABLE IF NOT EXISTS indieauth_tokens (
+ id text PRIMARY KEY, token_hash text UNIQUE NOT NULL, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ client_id text NOT NULL, scope text NOT NULL, me text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS indieauth_tokens_user ON indieauth_tokens(user_id,created_at);
+INSERT INTO schema_versions(version) VALUES(4) ON CONFLICT DO NOTHING;

@@ -113,7 +113,7 @@ func (a *Server) markdownPost(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, out.String())
 }
 func (a *Server) markdownBody(p Post, canonical string) (string, error) {
-	doc, err := html.Parse(strings.NewReader(string(a.md.Render(p.Body, p.RawHTML))))
+	doc, err := html.Parse(strings.NewReader(string(a.md.RenderContent(p))))
 	if err != nil {
 		return "", err
 	}

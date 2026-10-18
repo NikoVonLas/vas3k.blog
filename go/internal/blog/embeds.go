@@ -67,7 +67,7 @@ func isolateFrames(source string) string {
 // Executable author content is kept out of the parent document and feed exports.
 // Only explicit fenced `embed` blocks become separately served sandbox documents.
 func (m *Markdown) RenderPost(p Post) template.HTML {
-	doc, _ := html.Parse(strings.NewReader(string(m.Render(p.Body, p.RawHTML))))
+	doc, _ := html.Parse(strings.NewReader(string(m.RenderContent(p))))
 	walkHTML(doc, func(n *html.Node) {
 		if n.Type != html.ElementNode || n.Data != "code" || !hasClass(n, "language-embed") || n.Parent == nil || n.Parent.Data != "pre" {
 			return
