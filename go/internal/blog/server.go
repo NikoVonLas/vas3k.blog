@@ -53,6 +53,7 @@ type page struct {
 	Page, Next, Previous                                    int
 	Translations                                            []Post
 	Home                                                    bool
+	Hero                                                    *Post
 }
 
 func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
@@ -132,6 +133,10 @@ func (a *Server) routes() {
 	handle("POST /logout/", a.logout)
 	handle("GET /profile/", a.profile)
 	handle("POST /profile/", a.profile)
+	handle("POST /uploads/", a.upload)
+	handle("GET /media/{id}", a.media)
+	handle("POST /godmode/link-preview/", a.linkPreview)
+	handle("GET /embeds/{id}/{digest}/document", a.embed)
 	handle("GET /godmode/", a.admin)
 	handle("GET /godmode/posts/new/", a.edit)
 	handle("POST /godmode/posts/new/", a.edit)
@@ -184,10 +189,14 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https: http:; media-src 'self' https:; style-src 'self'; script-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https: http:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src 'self' https: http:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Language", a.lang(r))
-	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+	limit := int64(2 << 20)
+	if r.URL.Path == "/uploads/" {
+		limit = 11 << 20
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	if c, e := r.Cookie("session"); e == nil {
 		u, e := a.Store.Session(r.Context(), c.Value)
 		if e == nil {
@@ -241,14 +250,18 @@ func (a *Server) validCSRF(r *http.Request) bool {
 	if origin != a.Config.BaseURL {
 		return false
 	}
-	if e := r.ParseForm(); e != nil {
-		return false
+	token := r.Header.Get("X-CSRF-Token")
+	if token == "" {
+		if e := r.ParseForm(); e != nil {
+			return false
+		}
+		token = r.PostForm.Get("csrf")
 	}
 	c, e := r.Cookie("csrf")
 	if e != nil || !a.validToken(c.Value) {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostForm.Get("csrf"))) == 1
+	return subtle.ConstantTimeCompare([]byte(c.Value), []byte(token)) == 1
 }
 func (a *Server) cookie(w http.ResponseWriter, name, value string, age int) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: age, HttpOnly: true, Secure: strings.HasPrefix(a.Config.BaseURL, "https://"), SameSite: http.SameSiteLaxMode})
@@ -332,7 +345,21 @@ func (a *Server) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Search never examines protected text, even if only its title would be returned.
-	posts, e := a.Store.Posts(r.Context(), Filter{Lang: a.lang(r), Kind: kind, Search: q, PublicOnly: q != "", Home: r.URL.Path == "/", Limit: 31, Offset: (n - 1) * 30})
+	home := r.URL.Path == "/" && q == ""
+	var hero *Post
+	exclude := ""
+	if home {
+		latest, err := a.Store.Posts(r.Context(), Filter{Lang: a.lang(r), Kind: "blog", Limit: 1})
+		if err != nil {
+			a.fail(w, err)
+			return
+		}
+		if len(latest) > 0 {
+			hero = &latest[0]
+			exclude = hero.ID
+		}
+	}
+	posts, e := a.Store.Posts(r.Context(), Filter{Lang: a.lang(r), Kind: kind, Search: q, PublicOnly: q != "", Home: home, HomeTimeline: home, ExcludeID: exclude, Limit: 31, Offset: (n - 1) * 30})
 	if e != nil {
 		a.fail(w, e)
 		return
@@ -341,6 +368,9 @@ func (a *Server) list(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 		p.Title = a.Config.Title
 		p.Home = q == ""
+		if n == 1 {
+			p.Hero = hero
+		}
 	}
 	if q != "" {
 		p.Title = "Поиск: " + q
@@ -395,7 +425,7 @@ func (a *Server) show(w http.ResponseWriter, r *http.Request) {
 	for _, c := range cs {
 		cv = append(cv, commentView{c, a.md.Comment(c.Body)})
 	}
-	body := strings.ReplaceAll(string(a.md.Render(p.Body, p.RawHTML)), `href="?block=`, `href="?lang=`+url.QueryEscape(p.Lang)+`&amp;block=`)
+	body := strings.ReplaceAll(string(a.md.RenderPost(p)), `href="?block=`, `href="?lang=`+url.QueryEscape(p.Lang)+`&amp;block=`)
 	if u == nil {
 		body = strings.ReplaceAll(body, "#comment-form", "#comments")
 	}

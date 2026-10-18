@@ -21,7 +21,9 @@ func TestMarkdownBlocksAndSafety(t *testing.T) {
 		{"unsafe", "<script>alert(1)</script><img src=x onerror=alert(1)>\n[x](javascript:alert(1))", nil, []string{"<script", "onerror=", "javascript:"}},
 		{"video", "![Film](https://example.org/a.mp4)", []string{"<video", "controls"}, nil},
 		{"youtube", "![Film](https://youtu.be/dQw4w9WgXcQ)", []string{"youtube-nocookie.com/embed/dQw4w9WgXcQ"}, nil},
-		{"blocked frame", "<iframe src=\"https://evil.example\"></iframe>", nil, []string{"evil.example"}},
+		{"isolated external frame", `<iframe src="https://example.org/widget" sandbox="allow-same-origin allow-top-navigation" onload="alert(1)"></iframe>`, []string{`src="https://example.org/widget"`, `sandbox="allow-scripts allow-forms allow-popups"`}, []string{"allow-same-origin", "allow-top-navigation", "onload="}},
+		{"unsafe frame", `<iframe src="javascript:alert(1)" srcdoc="<script>alert(1)</script>"></iframe>`, nil, []string{"javascript:", "srcdoc=", "<script"}},
+		{"formatted spoiler", "[? **bold** *italic* ~~old~~ `code` [link](https://example.org) ?]", []string{"<strong>bold</strong>", "<em>italic</em>", "<del>old</del>", "<code>code</code>", `href="https://example.org"`}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

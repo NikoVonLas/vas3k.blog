@@ -56,7 +56,11 @@ func (mediaRenderer) RegisterFuncs(r renderer.NodeRendererFuncRegisterer) {
 }
 func renderSpoiler(w util.BufWriter, source []byte, node ast.Node, enter bool) (ast.WalkStatus, error) {
 	if enter {
-		fmt.Fprintf(w, `<span class="block-spoiler" tabindex="0">%s</span>`, html.EscapeString(string(node.(*spoilerNode).source)))
+		var inline bytes.Buffer
+		md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+		_ = md.Convert(bytes.TrimSpace(node.(*spoilerNode).source), &inline)
+		content := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(inline.String()), "<p>"), "</p>")
+		fmt.Fprintf(w, `<span class="block-spoiler" tabindex="0">%s</span>`, content)
 	}
 	return ast.WalkSkipChildren, nil
 }
@@ -114,8 +118,9 @@ func NewMarkdown() *Markdown {
 	p.AllowAttrs("tabindex").Matching(regexp.MustCompile(`^0$`)).OnElements("span")
 	p.AllowAttrs("controls", "preload", "src").OnElements("video")
 	p.AllowAttrs("loading").OnElements("img", "iframe")
-	p.AllowAttrs("src").Matching(regexp.MustCompile(`^https://www\.youtube-nocookie\.com/embed/[A-Za-z0-9_-]{11}$`)).OnElements("iframe")
+	p.AllowAttrs("src").Matching(regexp.MustCompile(`^https?://`)).OnElements("iframe")
 	p.AllowAttrs("title", "allowfullscreen").OnElements("iframe")
+	p.AllowAttrs("height").Matching(regexp.MustCompile(`^[0-9]{1,4}$`)).OnElements("iframe")
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, extension.Footnote), goldmark.WithParserOptions(parser.WithAutoHeadingID(), parser.WithInlineParsers(util.Prioritized(spoilerParser{}, 150))), goldmark.WithRendererOptions(gmhtml.WithUnsafe(), gmhtml.WithHardWraps(), renderer.WithNodeRenderers(util.Prioritized(mediaRenderer{}, 100))))
 	return &Markdown{md, p}
 }
@@ -161,7 +166,7 @@ func (m *Markdown) Render(source string, raw bool) template.HTML {
 		counter := 0
 		rendered = m.blocks(source, &counter, 0, &headingIDs{used: map[string]bool{}})
 	}
-	return template.HTML(m.policy.Sanitize(rendered))
+	return template.HTML(isolateFrames(m.policy.Sanitize(rendered)))
 }
 func (m *Markdown) Comment(source string) template.HTML {
 	// Comments never interpret owner-only HTML or custom media blocks.

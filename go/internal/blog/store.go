@@ -59,9 +59,10 @@ func (s *Store) PostID(ctx context.Context, id string) (Post, error) {
 }
 
 type Filter struct {
-	Lang, Kind, Search      string
-	Admin, PublicOnly, Home bool
-	Limit, Offset           int
+	Lang, Kind, Search                    string
+	ExcludeID                             string
+	Admin, PublicOnly, Home, HomeTimeline bool
+	Limit, Offset                         int
 }
 
 func (s *Store) Posts(ctx context.Context, f Filter) ([]Post, error) {
@@ -73,9 +74,10 @@ func (s *Store) Posts(ctx context.Context, f Filter) ([]Post, error) {
 	}
 	rows, e := s.DB.Query(ctx, `SELECT `+postCols+` FROM posts WHERE
  ($1='' OR lang=$1) AND ($2='' OR kind=$2) AND ($3 OR (visible AND published_at<=now()))
- AND (NOT $4 OR NOT members_only) AND (NOT $5 OR on_home)
+ AND (NOT $4 OR NOT members_only) AND (NOT $5 OR on_home) AND (NOT $10 OR kind IN ('blog','notes'))
  AND ($6='' OR to_tsvector('simple',title||' '||body) @@ plainto_tsquery('simple',$6))
- ORDER BY published_at DESC,id LIMIT $7 OFFSET $8`, f.Lang, f.Kind, f.Admin, f.PublicOnly, f.Home, f.Search, f.Limit, f.Offset)
+ AND ($9='' OR id<>$9)
+ ORDER BY published_at DESC,id LIMIT $7 OFFSET $8`, f.Lang, f.Kind, f.Admin, f.PublicOnly, f.Home, f.Search, f.Limit, f.Offset, f.ExcludeID, f.HomeTimeline)
 	if e != nil {
 		return nil, e
 	}

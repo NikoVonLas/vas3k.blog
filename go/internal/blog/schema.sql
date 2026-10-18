@@ -52,3 +52,9 @@ CREATE TABLE IF NOT EXISTS outbox (
  delivered_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO schema_versions(version) VALUES(1) ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS uploads (
+ id text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id),
+ content_type text NOT NULL, body bytea NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO schema_versions(version) VALUES(2) ON CONFLICT DO NOTHING;
