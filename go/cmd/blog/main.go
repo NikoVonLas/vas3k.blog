@@ -109,7 +109,7 @@ func run() error {
 	default:
 		return errors.New("usage: blog [serve|migrate|admin-setup|import]")
 	}
-	cfg := blog.Config{OwnerEmail: os.Getenv("OWNER_EMAIL"), BaseURL: env("BASE_URL", "http://localhost:8080"), Listen: env("LISTEN_ADDR", "127.0.0.1:8080"), Title: env("BLOG_TITLE", "Личный блог"), Author: env("BLOG_AUTHOR", "Автор"), Language: env("BLOG_LANGUAGE", "ru"), SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), MailFrom: os.Getenv("MAIL_FROM")}
+	cfg := blog.Config{OwnerEmail: os.Getenv("OWNER_EMAIL"), BaseURL: env("BASE_URL", "http://localhost:8080"), Listen: env("LISTEN_ADDR", "127.0.0.1:8080"), Title: env("BLOG_TITLE", "Garbage M1ndstr3am"), Author: env("BLOG_AUTHOR", "Автор"), Language: env("BLOG_LANGUAGE", "ru"), SMTPAddr: os.Getenv("SMTP_ADDR"), SMTPUser: os.Getenv("SMTP_USER"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), MailFrom: os.Getenv("MAIL_FROM")}
 	app, e := blog.NewServer(ctx, store, cfg)
 	if e != nil {
 		return e

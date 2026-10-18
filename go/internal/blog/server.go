@@ -83,7 +83,7 @@ func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
 		return nil, errors.New("invalid language")
 	}
 	if c.Title == "" {
-		c.Title = "Личный блог"
+		c.Title = "Garbage M1ndstr3am"
 	}
 	if c.Author == "" {
 		c.Author = "Автор"
