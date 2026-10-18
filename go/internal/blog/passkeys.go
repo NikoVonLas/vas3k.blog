@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"strings"
 	"time"
@@ -35,6 +37,7 @@ type adminKey struct {
 	CreatedAt time.Time
 }
 type passkeyFlow struct {
+	First                                       bool
 	Session                                     webauthn.SessionData
 	UserID, GrantHash, SessionHash, Label, Next string
 }
@@ -73,7 +76,12 @@ func (a *Server) adminLoginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, adminNext(r.URL.Query().Get("next")), 303)
 		return
 	}
-	a.render(w, r, page{Mode: "admin-login", Title: "Вход администратора", LoginNext: adminNext(r.URL.Query().Get("next"))})
+	var hasKeys bool
+	if err := a.Store.DB.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM admin_passkeys)`).Scan(&hasKeys); err != nil {
+		a.fail(w, err)
+		return
+	}
+	a.render(w, r, page{Mode: "admin-login", Title: "Вход администратора", FirstPasskey: !hasKeys, LoginNext: adminNext(r.URL.Query().Get("next"))})
 }
 func (a *Server) adminSetupPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
@@ -249,6 +257,7 @@ func (a *Server) passkeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
+		First bool   `json:"first"`
 		Token string `json:"token"`
 		Label string `json:"label"`
 	}
@@ -273,6 +282,36 @@ func (a *Server) passkeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
 			passkeyError(w, 403, "Одноразовая ссылка недействительна или истекла. Создайте новую через скрипт настройки.")
 			return
 		}
+	} else if input.First {
+		if !a.localFirstKeyRequest(r) {
+			passkeyError(w, 403, "Для первичной настройки откройте блог на localhost или используйте защищённую ссылку настройки.")
+			return
+		}
+		if _, err = tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(81241938)`); err != nil {
+			a.fail(w, err)
+			return
+		}
+		if !noAdminKeys(r.Context(), tx) {
+			passkeyError(w, 409, "Первый ключ уже зарегистрирован. Обновите страницу и войдите с ключом.")
+			return
+		}
+		email := strings.ToLower(strings.TrimSpace(a.Config.OwnerEmail))
+		addr, e := mail.ParseAddress(email)
+		if e != nil || addr.Address != email {
+			passkeyError(w, 403, "Для первичной настройки укажите OWNER_EMAIL в окружении сервера.")
+			return
+		}
+		_, err = tx.Exec(r.Context(), `INSERT INTO users(id,email,name,password_hash,is_admin) VALUES($1,$2,$3,'',true) ON CONFLICT(email) DO NOTHING`, randomToken(), email, a.Config.Author)
+		if err != nil {
+			a.fail(w, err)
+			return
+		}
+		err = tx.QueryRow(r.Context(), `SELECT id FROM users WHERE email=$1 AND is_admin AND NOT is_banned FOR UPDATE`, email).Scan(&flow.UserID)
+		if err != nil {
+			passkeyError(w, 403, "Учётная запись администратора недоступна")
+			return
+		}
+		flow.First = true
 	} else {
 		u := currentUser(r)
 		c, e := r.Cookie("session")
@@ -327,12 +366,23 @@ func (a *Server) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
+	// Serialize every registration against first-key enrollment, including CLI grants.
+	if _, err = tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(81241938)`); err != nil {
+		a.fail(w, err)
+		return
+	}
+	if flow.First && (!a.localFirstKeyRequest(r) || !noAdminKeys(r.Context(), tx)) {
+		passkeyError(w, 409, "Первый ключ уже зарегистрирован или первичная настройка недоступна. Обновите страницу.")
+		return
+	}
 	u, err := loadPasskeyUser(r.Context(), tx, flow.UserID)
 	if err != nil {
 		passkeyError(w, 403, "Администратор недоступен")
 		return
 	}
-	if flow.GrantHash != "" {
+	if flow.First {
+		// The direct loopback request and empty key store were checked under the lock.
+	} else if flow.GrantHash != "" {
 		result, e := tx.Exec(r.Context(), `DELETE FROM admin_setup_grants WHERE token_hash=$1 AND user_id=$2 AND expires_at>now()`, flow.GrantHash, u.ID)
 		if e != nil || result.RowsAffected() != 1 {
 			passkeyError(w, 403, "Ссылка настройки больше не действует")
@@ -432,4 +482,32 @@ func (s *Store) PrepareAdminPasskey(ctx context.Context, email, name string) (st
 		return "", err
 	}
 	return token, nil
+}
+
+// Direct local setup is available only on a loopback listener and localhost origin.
+// Public/proxied deployments continue to require a CLI grant or recent admin login.
+func (a *Server) localFirstKeyRequest(r *http.Request) bool {
+	base, err := url.Parse(a.Config.BaseURL)
+	if err != nil || base.Scheme != "http" || base.Hostname() != "localhost" || r.Host != base.Host {
+		return false
+	}
+	listen, _, err := net.SplitHostPort(a.Config.Listen)
+	if err != nil || !net.ParseIP(listen).IsLoopback() {
+		return false
+	}
+	peer, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil || !net.ParseIP(peer).IsLoopback() {
+		return false
+	}
+	for _, h := range []string{"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Real-IP", "Via"} {
+		if _, ok := r.Header[http.CanonicalHeaderKey(h)]; ok {
+			return false
+		}
+	}
+	return true
+}
+func noAdminKeys(ctx context.Context, tx pgx.Tx) bool {
+	var empty bool
+	err := tx.QueryRow(ctx, `SELECT NOT EXISTS(SELECT 1 FROM admin_passkeys)`).Scan(&empty)
+	return err == nil && empty
 }

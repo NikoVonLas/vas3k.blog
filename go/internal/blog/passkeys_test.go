@@ -336,3 +336,95 @@ func TestAdminOldSessionsAndCSRF(t *testing.T) {
 		t.Fatal("banned admin authenticated")
 	}
 }
+
+func (b *browser) localPasskeyJSON(path string, input any, peer string, headers map[string]string) *httptest.ResponseRecorder {
+	raw, _ := json.Marshal(input)
+	r := httptest.NewRequest("POST", b.app.Config.BaseURL+path, bytes.NewReader(raw))
+	r.RemoteAddr = peer
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Origin", b.app.Config.BaseURL)
+	for _, c := range b.cookies {
+		r.AddCookie(c)
+	}
+	if c := b.cookies["csrf"]; c != nil {
+		r.Header.Set("X-CSRF-Token", c.Value)
+	}
+	for k, v := range headers {
+		r.Header.Set(k, v)
+	}
+	w := httptest.NewRecorder()
+	b.app.ServeHTTP(w, r)
+	for _, c := range w.Result().Cookies() {
+		if c.MaxAge < 0 {
+			delete(b.cookies, c.Name)
+		} else {
+			b.cookies[c.Name] = c
+		}
+	}
+	return w
+}
+func TestFirstPasskeyButtonAndLocalEnrollment(t *testing.T) {
+	base := testApp(t)
+	a, err := NewServer(context.Background(), base.Store, Config{BaseURL: "http://localhost:8080", Listen: "127.0.0.1:8080", OwnerEmail: "new-owner@example.test", Author: "Owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := newBrowser(a)
+	second := newBrowser(a)
+	page := b.request("GET", "/admin", nil).Body.String()
+	if !strings.Contains(page, "Зарегистрировать первый ключ") || strings.Contains(page, `id="passkey-login"`) || strings.Contains(page, "Первый ключ регистрируется") {
+		t.Fatal("wrong empty-key UI")
+	}
+	second.request("GET", "/admin", nil)
+	v, spare := newVirtualPasskey(t), newVirtualPasskey(t)
+	begin := b.localPasskeyJSON("/admin/passkey/register/begin", map[string]any{"first": true}, "127.0.0.1:4567", nil)
+	begin2 := second.localPasskeyJSON("/admin/passkey/register/begin", map[string]any{"first": true}, "[::1]:4568", nil)
+	response := v.response(t, begin, true, a.Config.BaseURL, "localhost", true)
+	response2 := spare.response(t, begin2, true, a.Config.BaseURL, "localhost", true)
+	// Both tabs began before any key existed; only the first completion is allowed.
+	if w := b.localPasskeyJSON("/admin/passkey/register/finish", response, "127.0.0.1:4567", nil); w.Code != 200 {
+		t.Fatalf("first enrollment %d %s", w.Code, w.Body.String())
+	}
+	if w := second.localPasskeyJSON("/admin/passkey/register/finish", response2, "[::1]:4568", nil); w.Code != 409 {
+		t.Fatalf("second first-key enrollment %d", w.Code)
+	}
+	page = b.request("GET", "/admin", nil).Body.String()
+	if strings.Contains(page, "Зарегистрировать первый ключ") || !strings.Contains(page, `id="passkey-login"`) || strings.Contains(page, "Первый ключ регистрируется") {
+		t.Fatal("wrong existing-key UI")
+	}
+	if w := b.localPasskeyJSON("/admin/passkey/register/begin", map[string]any{"first": true}, "127.0.0.1:4567", nil); w.Code != 409 {
+		t.Fatal("first enrollment still open")
+	}
+	if b.cookies["session"] != nil {
+		t.Fatal("registration issued a login session")
+	}
+	// The newly registered key can authenticate normally.
+	login := b.passkeyJSON("/admin/passkey/login/begin", map[string]string{})
+	if w := b.passkeyJSON("/admin/passkey/login/finish", v.response(t, login, false, a.Config.BaseURL, "localhost", true)); w.Code != 200 {
+		t.Fatal("first key cannot log in")
+	}
+}
+func TestFirstPasskeyNetworkBoundary(t *testing.T) {
+	base := testApp(t)
+	for _, tc := range []struct {
+		name, origin, listen, peer string
+		headers                    map[string]string
+	}{
+		{"remote peer", "http://localhost:8080", "127.0.0.1:8080", "198.51.100.1:4567", nil},
+		{"public deployment", "https://blog.example", "127.0.0.1:8080", "127.0.0.1:4567", nil},
+		{"public listener", "http://localhost:8080", "0.0.0.0:8080", "127.0.0.1:4567", nil},
+		{"proxy", "http://localhost:8080", "127.0.0.1:8080", "127.0.0.1:4567", map[string]string{"X-Forwarded-For": "198.51.100.1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, e := NewServer(context.Background(), base.Store, Config{BaseURL: tc.origin, Listen: tc.listen, OwnerEmail: "owner@example.test"})
+			if e != nil {
+				t.Fatal(e)
+			}
+			b := newBrowser(a)
+			b.request("GET", "/admin", nil)
+			if w := b.localPasskeyJSON("/admin/passkey/register/begin", map[string]any{"first": true}, tc.peer, tc.headers); w.Code != 403 {
+				t.Fatalf("unsafe enrollment %d", w.Code)
+			}
+		})
+	}
+}

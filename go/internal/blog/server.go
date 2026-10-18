@@ -27,7 +27,7 @@ import (
 //go:embed templates/*.html static/*
 var assets embed.FS
 
-type Config struct{ BaseURL, Title, Author, Language, Listen, SMTPAddr, SMTPUser, SMTPPassword, MailFrom string }
+type Config struct{ BaseURL, Title, Author, Language, Listen, SMTPAddr, SMTPUser, SMTPPassword, MailFrom, OwnerEmail string }
 type Server struct {
 	Store       *Store
 	Config      Config
@@ -45,6 +45,7 @@ type commentView struct {
 }
 type page struct {
 	PasskeyKeys                                             []adminKey
+	FirstPasskey                                            bool
 	Status                                                  int
 	Title, Mode, Message, CSRF, Lang, Query, Block, ReplyTo string
 	LoginNext, LoginRedirect                                string

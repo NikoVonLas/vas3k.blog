@@ -55,7 +55,7 @@
     status.textContent = 'Подтвердите действие на своём устройстве…';
     try {
       const path = '/admin/passkey/' + (registering ? 'register' : 'login');
-      const input = registering ? {token: setupToken, label: document.getElementById('passkey-label').value} : {next: root.dataset.next};
+      const input = registering ? {token: setupToken, first: root.dataset.firstKey === 'true', label: document.getElementById('passkey-label')?.value || 'Основной ключ'} : {next: root.dataset.next};
       const options = optionsFromJSON(await post(path + '/begin', input));
       const credential = registering ? await navigator.credentials.create({publicKey: options}) : await navigator.credentials.get({publicKey: options});
       if (!credential) throw new Error('Ключ не выбран. Попробуйте ещё раз.');
