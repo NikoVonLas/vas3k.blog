@@ -58,3 +58,16 @@ CREATE TABLE IF NOT EXISTS uploads (
  created_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO schema_versions(version) VALUES(2) ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS webmentions (
+ id text PRIMARY KEY, direction text NOT NULL CHECK(direction IN ('in','out')),
+ post_id text NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ source text NOT NULL, target text NOT NULL,
+ state text NOT NULL DEFAULT 'queued', moderation text NOT NULL DEFAULT 'pending',
+ title text NOT NULL DEFAULT '', kind text NOT NULL DEFAULT 'mention',
+ attempts integer NOT NULL DEFAULT 0, available_at timestamptz NOT NULL DEFAULT now(),
+ locked_until timestamptz, claim text NOT NULL DEFAULT '',
+ detail text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS webmentions_queue ON webmentions(available_at) WHERE state='queued';
+CREATE INDEX IF NOT EXISTS webmentions_post ON webmentions(post_id,created_at);
+INSERT INTO schema_versions(version) VALUES(3) ON CONFLICT DO NOTHING;

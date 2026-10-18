@@ -245,3 +245,7 @@ summary { cursor: pointer; color: var(--link-color); }
   .about-link-row { grid-template-columns: 1fr; }
   .about-link-row button { justify-self: start; }
 }
+
+.webmention, .mention-review { padding: 24px; margin: 24px 0; background: var(--block-bg-color); overflow-wrap: anywhere; }
+.mention-review h2 { padding: 0; font-size: 24px; text-align: left; }
+.page-webmentions > h1 { padding: 25px 0; }

@@ -92,6 +92,7 @@ func run() error {
 	}
 	server := &http.Server{Addr: cfg.Listen, Handler: app, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 1 << 16}
 	go app.RunMailWorker(ctx)
+	go app.RunWebmentionWorker(ctx)
 	go func() {
 		<-ctx.Done()
 		stop, cancel := context.WithTimeout(context.Background(), 10*time.Second)

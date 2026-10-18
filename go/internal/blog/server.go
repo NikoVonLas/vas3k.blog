@@ -57,6 +57,8 @@ type page struct {
 	About                                                   AboutCard
 	AboutHTML                                               template.HTML
 	AboutRevision                                           string
+	Mentions                                                []Webmention
+	AcceptsMentions                                         bool
 }
 
 func NewServer(ctx context.Context, s *Store, c Config) (*Server, error) {
@@ -140,6 +142,10 @@ func (a *Server) routes() {
 	handle("GET /media/{id}", a.media)
 	handle("POST /godmode/link-preview/", a.linkPreview)
 	handle("GET /embeds/{id}/{digest}/document", a.embed)
+	handle("POST /webmention", a.receiveMention)
+	handle("GET /godmode/webmentions/", a.mentionsAdmin)
+	handle("POST /godmode/webmentions/{id}/", a.moderateMention)
+	handle("POST /godmode/posts/{id}/webmentions/", a.sendMentions)
 	handle("GET /godmode/", a.admin)
 	handle("GET /godmode/about/", a.editAbout)
 	handle("POST /godmode/about/", a.editAbout)
@@ -198,11 +204,14 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Language", a.lang(r))
 	limit := int64(2 << 20)
+	if r.URL.Path == "/webmention" {
+		limit = 64 << 10
+	}
 	if r.URL.Path == "/uploads/" {
 		limit = 11 << 20
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
-	if c, e := r.Cookie("session"); e == nil {
+	if c, e := r.Cookie("session"); e == nil && r.URL.Path != "/webmention" {
 		u, e := a.Store.Session(r.Context(), c.Value)
 		if e == nil {
 			r = r.WithContext(context.WithValue(r.Context(), identityKey{}, u))
@@ -212,7 +221,8 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" {
-		if !a.validCSRF(r) {
+		// The public protocol endpoint never uses browser identity or privileged actions.
+		if r.URL.Path != "/webmention" && !a.validCSRF(r) {
 			http.Error(w, "Обновите страницу и повторите действие", http.StatusForbidden)
 			return
 		}
@@ -288,7 +298,29 @@ func (a *Server) render(w http.ResponseWriter, r *http.Request, p page) {
 	}
 	if p.Mode == "post" {
 		p.StructuredData = a.structuredPost(p.Post)
-		w.Header().Set("Link", fmt.Sprintf(`<%s%s>; rel="alternate"; type="text/markdown", <%s/llms.txt?lang=%s>; rel="describedby"`, a.Config.BaseURL, p.Post.MarkdownURL(), a.Config.BaseURL, p.Post.Lang))
+		p.AcceptsMentions = acceptsMentions(p.Post)
+		discovery := fmt.Sprintf(`<%s%s>; rel="alternate"; type="text/markdown", <%s/llms.txt?lang=%s>; rel="describedby"`, a.Config.BaseURL, p.Post.MarkdownURL(), a.Config.BaseURL, p.Post.Lang)
+		if p.AcceptsMentions {
+			n, _ := strconv.Atoi(r.URL.Query().Get("wm_page"))
+			if n < 1 || n > 100000 {
+				n = 1
+			}
+			mentions, err := a.Store.Mentions(r.Context(), p.Post.ID, true, (n-1)*50)
+			if err != nil {
+				a.fail(w, err)
+				return
+			}
+			p.Mentions = mentions
+			if len(mentions) > 50 {
+				p.Mentions = mentions[:50]
+				p.Next = n + 1
+			}
+			if n > 1 {
+				p.Previous = n - 1
+			}
+			discovery += fmt.Sprintf(`, <%s/webmention>; rel="webmention"`, a.Config.BaseURL)
+		}
+		w.Header().Set("Link", discovery)
 	}
 	var b bytes.Buffer
 	if e := a.templates.ExecuteTemplate(&b, "layout", p); e != nil {
