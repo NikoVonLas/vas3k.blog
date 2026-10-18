@@ -1,4 +1,4 @@
-/* The Go blog uses the original dark palette exclusively. */
+/* Dark-only palette with a pure black page background. */
 :root {
     --sans-font: "Ubuntu", Helvetica, Verdana, sans-serif;
     --serif-font: "Merriweather", Georgia, Times, serif;
@@ -9,14 +9,15 @@
 
 html {
     color-scheme: dark;
-    --bg-color: #282c35;
+    --bg-color: #000;
+    background-color: var(--bg-color);
     --opposite-bg-color: #f5f6f8;
 
     --text-color: #DDD;
     --brighter-text-color: #FFF;
     --opposite-text-color: #333;
 
-    --block-bg-color: #1B1B1C;
+    --block-bg-color: #111;
     --opposite-block-bg-color: #FFF;
     --block-shadow: 0px 0px 0px #000;
     --block-border: solid 1px #FCFDFF;
