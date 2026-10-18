@@ -283,6 +283,10 @@ document.querySelector('#increment').onclick = () => {
 
 ## Карточки внешних страниц
 
+Вот живой пример — карточка сайта Mermaid с изображением, названием и описанием. Нажатие открывает исходную страницу.
+
+<figure class="link-preview"><a href="https://mermaid.js.org/" rel="noopener noreferrer"><img src="https://mermaid.js.org/mermaid-logo-horizontal.svg" alt="" loading="lazy"><figcaption><span class="link-preview-host">mermaid.js.org</span><strong class="link-preview-title">Mermaid</strong><span class="link-preview-description">Create diagrams and visualizations using text and code.</span></figcaption></a></figure>
+
 В редакторе вставьте URL в «Превью внешней страницы» и нажмите «Вставить карточку». Блог загрузит название, описание и обложку из метаданных страницы. Полученная карточка сохранится прямо в тексте записи; для её обновления вставьте ссылку заново.
 
 Если сайт не отдаёт метаданные или блокирует запрос, можно оставить обычную Markdown-ссылку. Превью доступны для публичных HTML-страниц; локальные адреса и внутренние сервисы не загружаются.
